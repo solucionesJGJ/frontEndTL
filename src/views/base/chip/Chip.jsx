@@ -1,8 +1,8 @@
 import { CCard, CCardBody, CCardHeader, CChip, CCol, CRow } from '@coreui/react'
 import { DocsComponents, DocsExample } from 'src/components'
-
+/* 
 import avatar1 from 'src/assets/images/avatars/1.jpg'
-import avatar4 from 'src/assets/images/avatars/4.jpg'
+import avatar4 from 'src/assets/images/avatars/4.jpg' */
 
 const Chip = () => {
   return (
@@ -84,11 +84,11 @@ const Chip = () => {
             <DocsExample href="components/chip/#chips-with-avatars">
               <div className="d-flex flex-wrap gap-2">
                 <CChip>
-                  <img className="chip-img" src={avatar1} width="16" height="16" alt="" /> Olivia
+                  <img className="chip-img" src={''} width="16" height="16" alt="" /> Olivia
                   Martin
                 </CChip>
                 <CChip>
-                  <img className="chip-img" src={avatar4} width="16" height="16" alt="" /> Ethan
+                  <img className="chip-img" src={''} width="16" height="16" alt="" /> Ethan
                   Carter
                 </CChip>
                 <CChip>
