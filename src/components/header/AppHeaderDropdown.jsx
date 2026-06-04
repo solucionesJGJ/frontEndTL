@@ -24,7 +24,7 @@ import CIcon from '@coreui/icons-react'
 import { useNavigate } from 'react-router-dom'
 import { logout } from './../../services/auth.service'
 
-import avatar8 from './../../assets/images/avatars/8.jpg'
+/* import avatar8 from './../../assets/images/avatars/8.jpg' */
 
 import { getCurrentUser } from './../../services/auth.service'
 
