@@ -29,6 +29,7 @@ import {
   cilUser,
   cilTags,
   cilList,
+  cilInbox
 } from '@coreui/icons'
 import { CNavGroup, CNavItem, CNavTitle } from '@coreui/react'
 
@@ -106,6 +107,16 @@ const _nav = [
     name: 'Prendas',
     to: '/admin/garments',
     icon: <CIcon icon={cilList} customClassName="nav-icon" />,
+  },
+  {
+    component: CNavTitle,
+    name: 'Operación',
+  },
+  {
+    component: CNavItem,
+    name: 'Recepción de lotes',
+    to: '/operator/batches',
+    icon: <CIcon icon={cilInbox} customClassName="nav-icon" />,
   },
   /*  {
      component: CNavItem,

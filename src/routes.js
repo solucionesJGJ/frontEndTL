@@ -19,6 +19,8 @@ import Login from './views/pages/login/Login'
 import GarmentTypes from './views/admin/garment-types/GarmentTypes'
 import Garments from './views/admin/garments/Garments'
 import Users from './views/admin/users/Users'
+import OperatorBatches from './views/operator/batches/OperatorBatches'
+import OperatorBatchDetail from './views/operator/batches/OperatorBatchDetail'
 
 
 // Dashboard
@@ -102,8 +104,9 @@ export const routes = [
   {
     path: '/admin/garments', name: 'Prendas', element: Garments,
   },
-  { path: '/admin/users', name: 'Usuarios', element: Users, }
-
+  { path: '/admin/users', name: 'Usuarios', element: Users, },
+  { path: '/operator/batches', name: 'Recepción de lotes', element: OperatorBatches, },
+  { path: '/operator/batches/:id', name: 'Detalle de lote', element: OperatorBatchDetail, }
   /* { path: '/theme', name: 'Theme', element: Colors, exact: true },
   { path: '/theme/colors', name: 'Colors', element: Colors },
   { path: '/theme/typography', name: 'Typography', element: Typography },
