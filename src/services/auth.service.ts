@@ -13,16 +13,28 @@ export async function login(email: string, password: string) {
     return data
 }
 
-export function logout() {
+export async function logout() {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
 }
 
 export function getCurrentUser() {
-    const user = localStorage.getItem('user')
-    return user ? JSON.parse(user) : null
+  const user = localStorage.getItem('user')
+  return user ? JSON.parse(user) : null
 }
 
-export function isAuthenticated() {
-    return Boolean(localStorage.getItem('token'))
+export function getCurrentRole() {
+  return getCurrentUser()?.role?.name
+}
+
+export function isAdmin() {
+  return getCurrentRole() === 'admin'
+}
+
+export function isClientOperator() {
+  return getCurrentRole() === 'client_operator'
+}
+
+export function isWarehouseOperator() {
+  return getCurrentRole() === 'warehouse_operator'
 }

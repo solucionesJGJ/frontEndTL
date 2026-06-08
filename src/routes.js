@@ -21,7 +21,7 @@ import Garments from './views/admin/garments/Garments'
 import Users from './views/admin/users/Users'
 import OperatorBatches from './views/operator/batches/OperatorBatches'
 import OperatorBatchDetail from './views/operator/batches/OperatorBatchDetail'
-
+import Stock from './views/operator/stock/Stock'
 
 // Dashboard
 const Dashboard = React.lazy(() => import('./views/dashboard/Dashboard'))
@@ -106,7 +106,8 @@ export const routes = [
   },
   { path: '/admin/users', name: 'Usuarios', element: Users, },
   { path: '/operator/batches', name: 'Recepción de lotes', element: OperatorBatches, },
-  { path: '/operator/batches/:id', name: 'Detalle de lote', element: OperatorBatchDetail, }
+  { path: '/operator/batches/:id', name: 'Detalle de lote', element: OperatorBatchDetail, },
+  { path: '/operator/stock', name: 'Stock actual', element: Stock, }
   /* { path: '/theme', name: 'Theme', element: Colors, exact: true },
   { path: '/theme/colors', name: 'Colors', element: Colors },
   { path: '/theme/typography', name: 'Typography', element: Typography },

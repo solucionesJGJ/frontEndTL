@@ -26,6 +26,11 @@ import {
 } from '../../../services/operatorBatch.service'
 
 import { getClients, type Client } from '../../../services/client.service'
+import {
+    getCurrentUser,
+    isClientOperator,
+    isAdmin,
+} from '../../../services/auth.service'
 
 const emptyForm = {
     client_id: '',
@@ -40,8 +45,11 @@ const OperatorBatches = () => {
     const [clients, setClients] = useState<Client[]>([])
     const [form, setForm] = useState(emptyForm)
     const [loading, setLoading] = useState(false)
-    
+
     const navigate = useNavigate();
+    const currentUser = getCurrentUser()
+    const clientOperator = isClientOperator()
+    const adminUser = isAdmin()
 
     const loadData = async () => {
         const [batchesData, clientsData] = await Promise.all([
@@ -50,7 +58,17 @@ const OperatorBatches = () => {
         ])
 
         setBatches(batchesData)
-        setClients(clientsData.filter((client) => client.active))
+
+        if (clientOperator && currentUser?.client) {
+            setClients([currentUser.client])
+
+            setForm((prev) => ({
+                ...prev,
+                client_id: currentUser.client.id,
+            }))
+        } else {
+            setClients(clientsData.filter((client) => client.active))
+        }
     }
 
     const handleChange = (
@@ -64,8 +82,18 @@ const OperatorBatches = () => {
     }
 
     const handleSubmit = async () => {
-        if (!form.client_id || !form.batch_number.trim()) {
-            alert('Cliente y número de lote son obligatorios')
+        if (!form.batch_number.trim()) {
+            alert('Número de lote es obligatorio')
+            return
+        }
+
+        if (adminUser && !form.client_id) {
+            alert('Cliente es obligatorio')
+            return
+        }
+
+        if (clientOperator && !currentUser?.client?.id) {
+            alert('Tu usuario no tiene cliente asociado')
             return
         }
 
@@ -73,33 +101,40 @@ const OperatorBatches = () => {
             setLoading(true)
 
             await createOperatorBatch({
-                client_id: form.client_id,
+                client_id: clientOperator
+                    ? currentUser.client.id
+                    : form.client_id,
                 batch_number: form.batch_number,
                 origin_location: form.origin_location,
                 destination_location: form.destination_location,
                 notes: form.notes,
             })
 
-            setForm(emptyForm)
+            setForm({
+                ...emptyForm,
+                client_id: clientOperator ? currentUser.client.id : '',
+            })
+
             await loadData()
-        } catch (error) {
-            let message = 'Error creando lote'
-            if (typeof error === 'object' && error !== null) {
-                const e = error as { response?: { data?: { message?: string } } }
-                if (e.response?.data?.message) {
-                    message = e.response.data.message
-                }
-            }
-            alert(message)
+        } catch (error: any) {
+            alert(error?.response?.data?.message || 'Error creando lote')
         } finally {
             setLoading(false)
         }
     }
-
+    const user = getCurrentUser()
+    const role = user?.role?.name
+    const isClientOperatorUser = role === 'client_operator'
     useEffect(() => {
         const load = async () => {
             setLoading(true);
             await loadData();
+            if (isClientOperatorUser && user?.client?.id) {
+                setForm((prev) => ({
+                    ...prev,
+                    client_id: user.client.id,
+                }))
+            }
             setLoading(false);
         }
         if (!loading) {
@@ -114,77 +149,80 @@ const OperatorBatches = () => {
             </CCardHeader>
 
             <CCardBody>
-                <CRow className="mb-3">
-                    <CCol md={4}>
-                        <CFormSelect
-                            label="Cliente"
-                            value={form.client_id}
-                            onChange={(e) => handleChange('client_id', e.target.value)}
-                        >
-                            <option value="">Seleccione cliente</option>
-                            {clients.map((client) => (
-                                <option key={client.id} value={client.id}>
-                                    {client.name} {client.rut ? `(${client.rut})` : ''}
-                                </option>
-                            ))}
-                        </CFormSelect>
-                    </CCol>
+                {adminUser && (
+                    <><CRow className="mb-3">
+                        <CCol md={4}>
+                            <CFormSelect
+                                label="Cliente"
+                                value={form.client_id}
+                                disabled={clientOperator}
+                                onChange={(e) => handleChange('client_id', e.target.value)}
+                            >
+                                <option value="">Seleccione cliente</option>
 
-                    <CCol md={3}>
-                        <CFormInput
-                            label="Número de lote"
-                            value={form.batch_number}
-                            onChange={(e) =>
-                                handleChange('batch_number', e.target.value)
-                            }
-                            placeholder="Ej: LOTE-0001"
-                        />
-                    </CCol>
+                                {clients.map((client) => (
+                                    <option key={client.id} value={client.id}>
+                                        {client.name} {client.rut ? `(${client.rut})` : ''}
+                                    </option>
+                                ))}
+                            </CFormSelect>
+                        </CCol>
 
-                    <CCol md={3}>
-                        <CFormInput
-                            label="Origen"
-                            value={form.origin_location}
-                            onChange={(e) =>
-                                handleChange('origin_location', e.target.value)
-                            }
-                            placeholder="Ej: Cliente"
-                        />
-                    </CCol>
+                        <CCol md={3}>
+                            <CFormInput
+                                label="Número de lote"
+                                value={form.batch_number}
+                                onChange={(e) =>
+                                    handleChange('batch_number', e.target.value)
+                                }
+                                placeholder="Ej: LOTE-0001"
+                            />
+                        </CCol>
 
-                    <CCol md={2}>
-                        <CFormInput
-                            label="Destino"
-                            value={form.destination_location}
-                            onChange={(e) =>
-                                handleChange('destination_location', e.target.value)
-                            }
-                            placeholder="Ej: Planta"
-                        />
-                    </CCol>
-                </CRow>
+                        <CCol md={3}>
+                            <CFormInput
+                                label="Origen"
+                                value={form.origin_location}
+                                onChange={(e) =>
+                                    handleChange('origin_location', e.target.value)
+                                }
+                                placeholder="Ej: Cliente"
+                            />
+                        </CCol>
 
-                <CRow className="mb-4">
-                    <CCol md={8}>
-                        <CFormTextarea
-                            label="Notas"
-                            rows={1}
-                            value={form.notes}
-                            onChange={(e) => handleChange('notes', e.target.value)}
-                        />
-                    </CCol>
+                        <CCol md={2}>
+                            <CFormInput
+                                label="Destino"
+                                value={form.destination_location}
+                                onChange={(e) =>
+                                    handleChange('destination_location', e.target.value)
+                                }
+                                placeholder="Ej: Planta"
+                            />
+                        </CCol>
+                    </CRow>
 
-                    <CCol md={4} className="d-flex align-items-end">
-                        <CButton
-                            color="primary"
-                            onClick={handleSubmit}
-                            disabled={loading}
-                        >
-                            {loading ? 'Guardando...' : 'Crear lote'}
-                        </CButton>
-                    </CCol>
-                </CRow>
+                        <CRow className="mb-4">
+                            <CCol md={8}>
+                                <CFormTextarea
+                                    label="Notas"
+                                    rows={1}
+                                    value={form.notes}
+                                    onChange={(e) => handleChange('notes', e.target.value)}
+                                />
+                            </CCol>
 
+                            <CCol md={4} className="d-flex align-items-end">
+                                <CButton
+                                    color="primary"
+                                    onClick={handleSubmit}
+                                    disabled={loading}
+                                >
+                                    {loading ? 'Guardando...' : 'Crear lote'}
+                                </CButton>
+                            </CCol>
+                        </CRow></>
+                )}
                 <CTable hover responsive>
                     <CTableHead>
                         <CTableRow>

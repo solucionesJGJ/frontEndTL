@@ -33,8 +33,8 @@ const user = getCurrentUser()
 const AppHeaderDropdown = () => {
   const navigate = useNavigate()
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
     navigate('/login')
   }
 
@@ -43,6 +43,7 @@ const AppHeaderDropdown = () => {
       <CDropdownToggle placement="bottom-end" className="py-0 pe-0" caret={false}>
         {/* <CAvatar src={avatar8} size="md" /> */}
         <span className="ms-2 d-none d-md-block">{user ? user.name.toUpperCase() : 'Usuario'}</span>
+        <span className="ms-2 d-none d-md-block">{user ? user.role.name.toUpperCase() : 'Rol'}</span>
       </CDropdownToggle>
       <CDropdownMenu className="pt-0" placement="bottom-end">
         <CDropdownHeader className="bg-body-secondary fw-semibold mb-2">Account</CDropdownHeader>

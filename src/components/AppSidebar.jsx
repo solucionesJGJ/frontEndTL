@@ -38,7 +38,9 @@ import { AppSidebarNav } from './AppSidebarNav'
 import { sygnet } from 'src/assets/brand/sygnet' */
 
 // sidebar nav config
-import navigation from '../_nav'
+import { getNavByRole } from '../_nav'
+import { getCurrentUser } from '../services/auth.service'
+
 
 /**
  * AppSidebar functional component
@@ -56,6 +58,9 @@ const AppSidebar = () => {
   const dispatch = useDispatch()
   const unfoldable = useSelector((state) => state.sidebarUnfoldable)
   const sidebarShow = useSelector((state) => state.sidebarShow)
+  const user = getCurrentUser()
+  const role = user?.role.name
+  const navigation = getNavByRole({ role })
 
   return (
     <CSidebar
@@ -68,6 +73,7 @@ const AppSidebar = () => {
         dispatch({ type: 'set', sidebarShow: visible })
       }}
     >
+
       <CSidebarHeader className="border-bottom">
         <CSidebarBrand to="/">
           {/* <CIcon customClassName="sidebar-brand-full" icon={logo} height={32} />

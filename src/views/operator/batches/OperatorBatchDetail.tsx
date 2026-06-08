@@ -43,6 +43,7 @@ import {
     getMovementStatuses,
     type MovementStatus,
 } from '../../../services/movementStatus.service'
+import { getCurrentUser } from '../../../services/auth.service'
 
 const emptyItemForm = {
     garment_id: '',
@@ -74,7 +75,9 @@ const OperatorBatchDetail = () => {
     const [movementForm, setMovementForm] = useState(emptyMovementForm)
     const [editingItemId, setEditingItemId] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
-
+    const [canMoveStock, setCanMoveStock] = useState(false);
+    const [canManageBatchItems, setcanManageBatchItems] = useState(false)
+    const user = getCurrentUser();
     const batchGarments = useMemo(() => {
         return items
             .map((item) => item.garment)
@@ -236,6 +239,8 @@ const OperatorBatchDetail = () => {
         const load = async () => {
             setLoading(true)
             await loadData()
+            setCanMoveStock(user.role?.name === 'admin' || user.role?.name === 'warehouse_operator');
+            setcanManageBatchItems(user.role?.name === 'admin' || user.role?.name === 'client_operator');
             setLoading(false)
         }
         if (!loading)
@@ -274,247 +279,249 @@ const OperatorBatchDetail = () => {
                 </CCardBody>
             </CCard>
 
-            <CCard className="mb-4">
-                <CCardHeader>
-                    <strong>Prendas del lote</strong>
-                </CCardHeader>
+            {canManageBatchItems &&
+                (<CCard className="mb-4">
+                    <CCardHeader>
+                        <strong>Prendas del lote</strong>
+                    </CCardHeader>
 
-                <CCardBody>
-                    <CRow className="mb-3">
-                        <CCol md={4}>
-                            <CFormSelect
-                                label="Prenda"
-                                value={itemForm.garment_id}
-                                disabled={Boolean(editingItemId)}
-                                onChange={(e) => handleItemChange('garment_id', e.target.value)}
-                            >
-                                <option value="">Seleccione prenda</option>
+                    <CCardBody>
+                        <CRow className="mb-3">
+                            <CCol md={4}>
+                                <CFormSelect
+                                    label="Prenda"
+                                    value={itemForm.garment_id}
+                                    disabled={Boolean(editingItemId)}
+                                    onChange={(e) => handleItemChange('garment_id', e.target.value)}
+                                >
+                                    <option value="">Seleccione prenda</option>
+
+                                    {editingItemId && (
+                                        <option value={itemForm.garment_id}>
+                                            {items.find((item) => item.id === editingItemId)?.garment
+                                                ?.code || 'Prenda seleccionada'}
+                                        </option>
+                                    )}
+
+                                    {!editingItemId &&
+                                        availableGarments.map((garment) => (
+                                            <option key={garment.id} value={garment.id}>
+                                                {garment.code} - {garment.description || garment.type?.name}
+                                            </option>
+                                        ))}
+                                </CFormSelect>
+                            </CCol>
+
+                            <CCol md={2}>
+                                <CFormInput
+                                    label="Cant. enviada"
+                                    type="number"
+                                    min={1}
+                                    value={itemForm.quantity_sent}
+                                    onChange={(e) =>
+                                        handleItemChange('quantity_sent', Number(e.target.value))
+                                    }
+                                />
+                            </CCol>
+
+                            <CCol md={2}>
+                                <CFormInput
+                                    label="Cant. recibida"
+                                    type="number"
+                                    min={0}
+                                    value={itemForm.quantity_received}
+                                    onChange={(e) =>
+                                        handleItemChange('quantity_received', Number(e.target.value))
+                                    }
+                                />
+                            </CCol>
+
+                            <CCol md={4}>
+                                <CFormTextarea
+                                    label="Notas"
+                                    rows={1}
+                                    value={itemForm.notes}
+                                    onChange={(e) => handleItemChange('notes', e.target.value)}
+                                />
+                            </CCol>
+                        </CRow>
+
+                        <CRow className="mb-4">
+                            <CCol md={12} className="d-flex gap-2">
+                                <CButton color="primary" onClick={handleSubmitItem}>
+                                    {editingItemId ? 'Actualizar prenda' : 'Agregar prenda'}
+                                </CButton>
 
                                 {editingItemId && (
-                                    <option value={itemForm.garment_id}>
-                                        {items.find((item) => item.id === editingItemId)?.garment
-                                            ?.code || 'Prenda seleccionada'}
-                                    </option>
+                                    <CButton color="secondary" onClick={handleCancelItem}>
+                                        Cancelar
+                                    </CButton>
                                 )}
+                            </CCol>
+                        </CRow>
 
-                                {!editingItemId &&
-                                    availableGarments.map((garment) => (
+                        <CTable hover responsive>
+                            <CTableHead>
+                                <CTableRow>
+                                    <CTableHeaderCell>Código</CTableHeaderCell>
+                                    <CTableHeaderCell>Tipo</CTableHeaderCell>
+                                    <CTableHeaderCell>Descripción</CTableHeaderCell>
+                                    <CTableHeaderCell>Enviada</CTableHeaderCell>
+                                    <CTableHeaderCell>Recibida</CTableHeaderCell>
+                                    <CTableHeaderCell>Procesada</CTableHeaderCell>
+                                    <CTableHeaderCell>Reproceso</CTableHeaderCell>
+                                    <CTableHeaderCell>Retornada</CTableHeaderCell>
+                                    <CTableHeaderCell>Notas</CTableHeaderCell>
+                                    <CTableHeaderCell>Acciones</CTableHeaderCell>
+                                </CTableRow>
+                            </CTableHead>
+
+                            <CTableBody>
+                                {items.map((item) => (
+                                    <CTableRow key={item.id}>
+                                        <CTableDataCell>{item.garment?.code || '-'}</CTableDataCell>
+                                        <CTableDataCell>{item.garment?.type?.name || '-'}</CTableDataCell>
+                                        <CTableDataCell>{item.garment?.description || '-'}</CTableDataCell>
+                                        <CTableDataCell>{item.quantity_sent}</CTableDataCell>
+                                        <CTableDataCell>{item.quantity_received}</CTableDataCell>
+                                        <CTableDataCell>{item.quantity_processed}</CTableDataCell>
+                                        <CTableDataCell>{item.quantity_reprocessed}</CTableDataCell>
+                                        <CTableDataCell>{item.quantity_returned}</CTableDataCell>
+                                        <CTableDataCell>{item.notes || '-'}</CTableDataCell>
+                                        <CTableDataCell>
+                                            <div className="d-flex gap-2">
+                                                <CButton
+                                                    color="warning"
+                                                    size="sm"
+                                                    onClick={() => handleEditItem(item)}
+                                                >
+                                                    Editar
+                                                </CButton>
+
+                                                <CButton
+                                                    color="danger"
+                                                    size="sm"
+                                                    onClick={() => handleRemoveItem(item.id)}
+                                                >
+                                                    Eliminar
+                                                </CButton>
+                                            </div>
+                                        </CTableDataCell>
+                                    </CTableRow>
+                                ))}
+                            </CTableBody>
+                        </CTable>
+                    </CCardBody>
+                </CCard>)}
+
+            {canMoveStock &&
+                (<CCard className="mb-4">
+                    <CCardHeader>
+                        <strong>Registrar movimiento</strong>
+                    </CCardHeader>
+
+                    <CCardBody>
+                        <CRow className="mb-3">
+                            <CCol md={3}>
+                                <CFormSelect
+                                    label="Prenda"
+                                    value={movementForm.garment_id}
+                                    onChange={(e) =>
+                                        handleMovementChange('garment_id', e.target.value)
+                                    }
+                                >
+                                    <option value="">Seleccione prenda</option>
+                                    {batchGarments.map((garment) => (
                                         <option key={garment.id} value={garment.id}>
                                             {garment.code} - {garment.description || garment.type?.name}
                                         </option>
                                     ))}
-                            </CFormSelect>
-                        </CCol>
+                                </CFormSelect>
+                            </CCol>
 
-                        <CCol md={2}>
-                            <CFormInput
-                                label="Cant. enviada"
-                                type="number"
-                                min={1}
-                                value={itemForm.quantity_sent}
-                                onChange={(e) =>
-                                    handleItemChange('quantity_sent', Number(e.target.value))
-                                }
-                            />
-                        </CCol>
+                            <CCol md={3}>
+                                <CFormSelect
+                                    label="Estado origen"
+                                    value={movementForm.from_status_id}
+                                    onChange={(e) =>
+                                        handleMovementChange('from_status_id', e.target.value)
+                                    }
+                                >
+                                    <option value="">Sin origen / ingreso inicial</option>
+                                    {statuses.map((status) => (
+                                        <option key={status.id} value={status.id}>
+                                            {status.name}
+                                        </option>
+                                    ))}
+                                </CFormSelect>
+                            </CCol>
 
-                        <CCol md={2}>
-                            <CFormInput
-                                label="Cant. recibida"
-                                type="number"
-                                min={0}
-                                value={itemForm.quantity_received}
-                                onChange={(e) =>
-                                    handleItemChange('quantity_received', Number(e.target.value))
-                                }
-                            />
-                        </CCol>
+                            <CCol md={3}>
+                                <CFormSelect
+                                    label="Estado destino"
+                                    value={movementForm.to_status_id}
+                                    onChange={(e) =>
+                                        handleMovementChange('to_status_id', e.target.value)
+                                    }
+                                >
+                                    <option value="">Seleccione destino</option>
+                                    {statuses.map((status) => (
+                                        <option key={status.id} value={status.id}>
+                                            {status.name}
+                                        </option>
+                                    ))}
+                                </CFormSelect>
+                            </CCol>
 
-                        <CCol md={4}>
-                            <CFormTextarea
-                                label="Notas"
-                                rows={1}
-                                value={itemForm.notes}
-                                onChange={(e) => handleItemChange('notes', e.target.value)}
-                            />
-                        </CCol>
-                    </CRow>
+                            <CCol md={3}>
+                                <CFormSelect
+                                    label="Tipo movimiento"
+                                    value={movementForm.movement_type}
+                                    onChange={(e) =>
+                                        handleMovementChange('movement_type', e.target.value)
+                                    }
+                                >
+                                    <option value="recepcion">Recepción</option>
+                                    <option value="proceso">Proceso</option>
+                                    <option value="reproceso">Reproceso</option>
+                                    <option value="retorno">Retorno</option>
+                                    <option value="ajuste">Ajuste</option>
+                                </CFormSelect>
+                            </CCol>
+                        </CRow>
 
-                    <CRow className="mb-4">
-                        <CCol md={12} className="d-flex gap-2">
-                            <CButton color="primary" onClick={handleSubmitItem}>
-                                {editingItemId ? 'Actualizar prenda' : 'Agregar prenda'}
-                            </CButton>
+                        <CRow className="mb-4">
+                            <CCol md={2}>
+                                <CFormInput
+                                    label="Cantidad"
+                                    type="number"
+                                    min={1}
+                                    value={movementForm.quantity}
+                                    onChange={(e) =>
+                                        handleMovementChange('quantity', Number(e.target.value))
+                                    }
+                                />
+                            </CCol>
 
-                            {editingItemId && (
-                                <CButton color="secondary" onClick={handleCancelItem}>
-                                    Cancelar
+                            <CCol md={8}>
+                                <CFormTextarea
+                                    label="Notas"
+                                    rows={1}
+                                    value={movementForm.notes}
+                                    onChange={(e) =>
+                                        handleMovementChange('notes', e.target.value)
+                                    }
+                                />
+                            </CCol>
+
+                            <CCol md={2} className="d-flex align-items-end">
+                                <CButton color="primary" onClick={handleSubmitMovement}>
+                                    Registrar
                                 </CButton>
-                            )}
-                        </CCol>
-                    </CRow>
-
-                    <CTable hover responsive>
-                        <CTableHead>
-                            <CTableRow>
-                                <CTableHeaderCell>Código</CTableHeaderCell>
-                                <CTableHeaderCell>Tipo</CTableHeaderCell>
-                                <CTableHeaderCell>Descripción</CTableHeaderCell>
-                                <CTableHeaderCell>Enviada</CTableHeaderCell>
-                                <CTableHeaderCell>Recibida</CTableHeaderCell>
-                                <CTableHeaderCell>Procesada</CTableHeaderCell>
-                                <CTableHeaderCell>Reproceso</CTableHeaderCell>
-                                <CTableHeaderCell>Retornada</CTableHeaderCell>
-                                <CTableHeaderCell>Notas</CTableHeaderCell>
-                                <CTableHeaderCell>Acciones</CTableHeaderCell>
-                            </CTableRow>
-                        </CTableHead>
-
-                        <CTableBody>
-                            {items.map((item) => (
-                                <CTableRow key={item.id}>
-                                    <CTableDataCell>{item.garment?.code || '-'}</CTableDataCell>
-                                    <CTableDataCell>{item.garment?.type?.name || '-'}</CTableDataCell>
-                                    <CTableDataCell>{item.garment?.description || '-'}</CTableDataCell>
-                                    <CTableDataCell>{item.quantity_sent}</CTableDataCell>
-                                    <CTableDataCell>{item.quantity_received}</CTableDataCell>
-                                    <CTableDataCell>{item.quantity_processed}</CTableDataCell>
-                                    <CTableDataCell>{item.quantity_reprocessed}</CTableDataCell>
-                                    <CTableDataCell>{item.quantity_returned}</CTableDataCell>
-                                    <CTableDataCell>{item.notes || '-'}</CTableDataCell>
-                                    <CTableDataCell>
-                                        <div className="d-flex gap-2">
-                                            <CButton
-                                                color="warning"
-                                                size="sm"
-                                                onClick={() => handleEditItem(item)}
-                                            >
-                                                Editar
-                                            </CButton>
-
-                                            <CButton
-                                                color="danger"
-                                                size="sm"
-                                                onClick={() => handleRemoveItem(item.id)}
-                                            >
-                                                Eliminar
-                                            </CButton>
-                                        </div>
-                                    </CTableDataCell>
-                                </CTableRow>
-                            ))}
-                        </CTableBody>
-                    </CTable>
-                </CCardBody>
-            </CCard>
-
-            <CCard className="mb-4">
-                <CCardHeader>
-                    <strong>Registrar movimiento</strong>
-                </CCardHeader>
-
-                <CCardBody>
-                    <CRow className="mb-3">
-                        <CCol md={3}>
-                            <CFormSelect
-                                label="Prenda"
-                                value={movementForm.garment_id}
-                                onChange={(e) =>
-                                    handleMovementChange('garment_id', e.target.value)
-                                }
-                            >
-                                <option value="">Seleccione prenda</option>
-                                {batchGarments.map((garment) => (
-                                    <option key={garment.id} value={garment.id}>
-                                        {garment.code} - {garment.description || garment.type?.name}
-                                    </option>
-                                ))}
-                            </CFormSelect>
-                        </CCol>
-
-                        <CCol md={3}>
-                            <CFormSelect
-                                label="Estado origen"
-                                value={movementForm.from_status_id}
-                                onChange={(e) =>
-                                    handleMovementChange('from_status_id', e.target.value)
-                                }
-                            >
-                                <option value="">Sin origen / ingreso inicial</option>
-                                {statuses.map((status) => (
-                                    <option key={status.id} value={status.id}>
-                                        {status.name}
-                                    </option>
-                                ))}
-                            </CFormSelect>
-                        </CCol>
-
-                        <CCol md={3}>
-                            <CFormSelect
-                                label="Estado destino"
-                                value={movementForm.to_status_id}
-                                onChange={(e) =>
-                                    handleMovementChange('to_status_id', e.target.value)
-                                }
-                            >
-                                <option value="">Seleccione destino</option>
-                                {statuses.map((status) => (
-                                    <option key={status.id} value={status.id}>
-                                        {status.name}
-                                    </option>
-                                ))}
-                            </CFormSelect>
-                        </CCol>
-
-                        <CCol md={3}>
-                            <CFormSelect
-                                label="Tipo movimiento"
-                                value={movementForm.movement_type}
-                                onChange={(e) =>
-                                    handleMovementChange('movement_type', e.target.value)
-                                }
-                            >
-                                <option value="recepcion">Recepción</option>
-                                <option value="proceso">Proceso</option>
-                                <option value="reproceso">Reproceso</option>
-                                <option value="retorno">Retorno</option>
-                                <option value="ajuste">Ajuste</option>
-                            </CFormSelect>
-                        </CCol>
-                    </CRow>
-
-                    <CRow className="mb-4">
-                        <CCol md={2}>
-                            <CFormInput
-                                label="Cantidad"
-                                type="number"
-                                min={1}
-                                value={movementForm.quantity}
-                                onChange={(e) =>
-                                    handleMovementChange('quantity', Number(e.target.value))
-                                }
-                            />
-                        </CCol>
-
-                        <CCol md={8}>
-                            <CFormTextarea
-                                label="Notas"
-                                rows={1}
-                                value={movementForm.notes}
-                                onChange={(e) =>
-                                    handleMovementChange('notes', e.target.value)
-                                }
-                            />
-                        </CCol>
-
-                        <CCol md={2} className="d-flex align-items-end">
-                            <CButton color="primary" onClick={handleSubmitMovement}>
-                                Registrar
-                            </CButton>
-                        </CCol>
-                    </CRow>
-                </CCardBody>
-            </CCard>
+                            </CCol>
+                        </CRow>
+                    </CCardBody>
+                </CCard>)}
 
             <CCard>
                 <CCardHeader>
