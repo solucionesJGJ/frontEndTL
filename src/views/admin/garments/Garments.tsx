@@ -38,6 +38,7 @@ const emptyForm = {
     color: '',
     barcode: '',
     active: true,
+    value: 0,
 }
 
 const Garments = () => {
@@ -99,6 +100,7 @@ const Garments = () => {
             color: garment.color || '',
             barcode: garment.barcode || '',
             active: garment.active,
+            value: Number(garment.value || 0),
         })
     }
 
@@ -119,12 +121,12 @@ const Garments = () => {
     useEffect(() => {
         const load = async () => {
             setIsLoading(true);
-            loadData()    
+            loadData()
             setIsLoading(false)
         }
-        if(!isLoading){
+        if (!isLoading) {
             load();
-        }        
+        }
     }, [])
 
     return (
@@ -212,6 +214,16 @@ const Garments = () => {
                             placeholder="Descripción opcional"
                         />
                     </CCol>
+                    <CCol md={2}>
+                        <CFormInput
+                            label="Valor"
+                            type="number"
+                            min={0}
+                            value={form.value}
+                            onChange={(e) => handleChange('value', e.target.value)}
+                            placeholder="0"
+                        />
+                    </CCol>
 
                     <CCol md={2} className="d-flex align-items-end">
                         <CFormCheck
@@ -247,6 +259,7 @@ const Garments = () => {
                             <CTableHeaderCell>Color</CTableHeaderCell>
                             <CTableHeaderCell>Barcode</CTableHeaderCell>
                             <CTableHeaderCell>Activo</CTableHeaderCell>
+                            <CTableHeaderCell>Valor</CTableHeaderCell>
                             <CTableHeaderCell>Acciones</CTableHeaderCell>
                         </CTableRow>
                     </CTableHead>
@@ -262,6 +275,9 @@ const Garments = () => {
                                 <CTableDataCell>{garment.color || '-'}</CTableDataCell>
                                 <CTableDataCell>{garment.barcode || '-'}</CTableDataCell>
                                 <CTableDataCell>{garment.active ? 'Sí' : 'No'}</CTableDataCell>
+                                <CTableDataCell>
+                                    ${Number(garment.value || 0).toLocaleString('es-CL')}
+                                </CTableDataCell>
                                 <CTableDataCell>
                                     <div className="d-flex gap-2">
                                         <CButton

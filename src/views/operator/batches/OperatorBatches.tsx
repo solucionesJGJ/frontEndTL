@@ -149,7 +149,7 @@ const OperatorBatches = () => {
             </CCardHeader>
 
             <CCardBody>
-                {adminUser && (
+                {(adminUser || isClientOperatorUser )&& (
                     <><CRow className="mb-3">
                         <CCol md={4}>
                             <CFormSelect

@@ -81,7 +81,7 @@ import { CNavGroup, CNavItem, CNavTitle } from '@coreui/react'
  * }
  */
 
-export const getNavByRole = ({role}: {role?: string}) => {
+export const getNavByRole = ({ role }: { role?: string }) => {
   const nav: any[] = []
   if (role === 'admin') {
     nav.push(
@@ -111,6 +111,12 @@ export const getNavByRole = ({role}: {role?: string}) => {
         component: CNavItem,
         name: 'Prendas',
         to: '/admin/garments',
+        icon: <CIcon icon={cilList} customClassName="nav-icon" />,
+      },
+      {
+        component: CNavItem,
+        name: 'Procesos de prenda',
+        to: '/admin/garment-processes',
         icon: <CIcon icon={cilList} customClassName="nav-icon" />,
       },
     )

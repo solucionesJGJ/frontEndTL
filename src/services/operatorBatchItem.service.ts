@@ -5,23 +5,36 @@ export type OperatorBatchItem = {
     id: string
     batch_id: string
     garment_id: string
+    garment_process_id?: string | null
     quantity_sent: number
     quantity_received: number
     quantity_processed: number
     quantity_reprocessed: number
     quantity_returned: number
+    unit_value: number
+    process_percentage: number
+    calculated_unit_value: number
+    calculated_total: number
     notes?: string | null
     garment?: Garment
+    process?: {
+        id: string
+        name: string
+        code: string
+        percentage: number
+    } | null
 }
 
 export type CreateBatchItemPayload = {
     garment_id: string
+    garment_process_id?: string | null
     quantity_sent: number
     quantity_received?: number
     notes?: string
 }
 
 export type UpdateBatchItemPayload = {
+    garment_process_id?: string | null
     quantity_sent?: number
     quantity_received?: number
     quantity_processed?: number

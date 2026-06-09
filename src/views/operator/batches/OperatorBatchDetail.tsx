@@ -43,10 +43,17 @@ import {
     getMovementStatuses,
     type MovementStatus,
 } from '../../../services/movementStatus.service'
+
 import { getCurrentUser } from '../../../services/auth.service'
+
+import {
+    getGarmentProcesses,
+    type GarmentProcess,
+} from '../../../services/garmentProcess.service'
 
 const emptyItemForm = {
     garment_id: '',
+    garment_process_id: '',
     quantity_sent: 1,
     quantity_received: 1,
     notes: '',
@@ -70,7 +77,7 @@ const OperatorBatchDetail = () => {
     const [garments, setGarments] = useState<Garment[]>([])
     const [statuses, setStatuses] = useState<MovementStatus[]>([])
     const [movements, setMovements] = useState<OperatorMovement[]>([])
-
+    const [processes, setProcesses] = useState<GarmentProcess[]>([])
     const [itemForm, setItemForm] = useState(emptyItemForm)
     const [movementForm, setMovementForm] = useState(emptyMovementForm)
     const [editingItemId, setEditingItemId] = useState<string | null>(null)
@@ -102,14 +109,17 @@ const OperatorBatchDetail = () => {
             garmentsData,
             statusesData,
             movementsData,
+            processesData,
         ] = await Promise.all([
             getOperatorBatchById(batchId),
             getBatchItems(batchId),
             getGarments(),
             getMovementStatuses(),
             getBatchMovements(batchId),
+            getGarmentProcesses(),
         ])
 
+        setProcesses(processesData.filter((process) => process.active))
         setBatch(batchData)
         setItems(itemsData)
         setGarments(garmentsData)
@@ -150,6 +160,7 @@ const OperatorBatchDetail = () => {
 
         if (editingItemId) {
             await updateBatchItem(batchId, editingItemId, {
+                garment_process_id: itemForm.garment_process_id || null,
                 quantity_sent: Number(itemForm.quantity_sent),
                 quantity_received: Number(itemForm.quantity_received),
                 notes: itemForm.notes,
@@ -157,6 +168,7 @@ const OperatorBatchDetail = () => {
         } else {
             await addBatchItem(batchId, {
                 garment_id: itemForm.garment_id,
+                garment_process_id: itemForm.garment_process_id || null,
                 quantity_sent: Number(itemForm.quantity_sent),
                 quantity_received: Number(itemForm.quantity_received),
                 notes: itemForm.notes,
@@ -173,6 +185,7 @@ const OperatorBatchDetail = () => {
 
         setItemForm({
             garment_id: item.garment_id,
+            garment_process_id: item.garment_process_id || '',
             quantity_sent: item.quantity_sent,
             quantity_received: item.quantity_received,
             notes: item.notes || '',
@@ -246,6 +259,13 @@ const OperatorBatchDetail = () => {
         if (!loading)
             load()
     }, [batchId])
+    
+    const batchTotal = useMemo(() => {
+        return items.reduce(
+            (total, item) => total + Number(item.calculated_total || 0),
+            0,
+        )
+    }, [items])
 
     return (
         <>
@@ -335,6 +355,22 @@ const OperatorBatchDetail = () => {
                                     }
                                 />
                             </CCol>
+                            <CCol md={3}>
+                                <CFormSelect
+                                    label="Proceso"
+                                    value={itemForm.garment_process_id}
+                                    onChange={(e) =>
+                                        handleItemChange('garment_process_id', e.target.value)
+                                    }
+                                >
+                                    <option value="">Seleccione proceso</option>
+                                    {processes.map((process) => (
+                                        <option key={process.id} value={process.id}>
+                                            {process.name} ({process.percentage}%)
+                                        </option>
+                                    ))}
+                                </CFormSelect>
+                            </CCol>
 
                             <CCol md={4}>
                                 <CFormTextarea
@@ -359,7 +395,10 @@ const OperatorBatchDetail = () => {
                                 )}
                             </CCol>
                         </CRow>
-
+                        <div className="mb-3">
+                            <strong>Total valorizado del lote:</strong>{' '}
+                            ${batchTotal.toLocaleString('es-CL')}
+                        </div>
                         <CTable hover responsive>
                             <CTableHead>
                                 <CTableRow>
@@ -371,6 +410,11 @@ const OperatorBatchDetail = () => {
                                     <CTableHeaderCell>Procesada</CTableHeaderCell>
                                     <CTableHeaderCell>Reproceso</CTableHeaderCell>
                                     <CTableHeaderCell>Retornada</CTableHeaderCell>
+                                    <CTableHeaderCell>Proceso</CTableHeaderCell>
+                                    <CTableHeaderCell>Valor base</CTableHeaderCell>
+                                    <CTableHeaderCell>%</CTableHeaderCell>
+                                    <CTableHeaderCell>Valor unit.</CTableHeaderCell>
+                                    <CTableHeaderCell>Total</CTableHeaderCell>
                                     <CTableHeaderCell>Notas</CTableHeaderCell>
                                     <CTableHeaderCell>Acciones</CTableHeaderCell>
                                 </CTableRow>
@@ -387,6 +431,25 @@ const OperatorBatchDetail = () => {
                                         <CTableDataCell>{item.quantity_processed}</CTableDataCell>
                                         <CTableDataCell>{item.quantity_reprocessed}</CTableDataCell>
                                         <CTableDataCell>{item.quantity_returned}</CTableDataCell>
+                                        <CTableDataCell>{item.process?.name || '-'}</CTableDataCell>
+
+                                        <CTableDataCell>
+                                            ${Number(item.unit_value || 0).toLocaleString('es-CL')}
+                                        </CTableDataCell>
+
+                                        <CTableDataCell>
+                                            {Number(item.process_percentage || 0)}%
+                                        </CTableDataCell>
+
+                                        <CTableDataCell>
+                                            ${Number(item.calculated_unit_value || 0).toLocaleString('es-CL')}
+                                        </CTableDataCell>
+
+                                        <CTableDataCell>
+                                            <strong>
+                                                ${Number(item.calculated_total || 0).toLocaleString('es-CL')}
+                                            </strong>
+                                        </CTableDataCell>
                                         <CTableDataCell>{item.notes || '-'}</CTableDataCell>
                                         <CTableDataCell>
                                             <div className="d-flex gap-2">

@@ -5,6 +5,7 @@ export type Garment = {
   client_id: string
   garment_type_id: string
   code: string
+  value:number
   description?: string | null
   size?: string | null
   color?: string | null
