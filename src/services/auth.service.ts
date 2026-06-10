@@ -2,20 +2,21 @@
 import { apiClient } from '../api/apiClient'
 
 export async function login(email: string, password: string) {
-    const { data } = await apiClient.post('/auth/login', {
-        email,
-        password,
-    })
+  const { data } = await apiClient.post('/auth/login', {
+    email,
+    password,
+  })
 
-    localStorage.setItem('token', data.token)
-    localStorage.setItem('user', JSON.stringify(data.user))
+  localStorage.setItem('token', data.token)
+  localStorage.setItem('user', JSON.stringify(data.user))
 
-    return data
+  return data
 }
 
 export async function logout() {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+  localStorage.removeItem('token')
+  localStorage.removeItem('user')
+  sessionStorage.clear()
 }
 
 export function getCurrentUser() {

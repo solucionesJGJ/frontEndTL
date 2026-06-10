@@ -23,6 +23,8 @@ import {
     type Client,
 } from '../../../services/client.service'
 
+import { useFeedback } from '../../../context/FeedbackContext'
+
 const emptyForm = {
     name: '',
     rut: '',
@@ -37,6 +39,7 @@ const Clients = () => {
     const [form, setForm] = useState(emptyForm)
     const [editingId, setEditingId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false);
+    const { confirmAction, showAlert, showBackendError } = useFeedback()
 
     const loadClients = async () => {
         setIsLoading(true);
@@ -54,20 +57,41 @@ const Clients = () => {
 
     const handleSubmit = async () => {
         if (!form.name.trim()) {
-            alert('El nombre es obligatorio')
+            showAlert('El nombre es obligatorio', 'warning')
             return
         }
+        const confirmed = await confirmAction({
+            title: editingId ? 'Actualizar cliente' : 'Crear cliente',
+            message: 'Se guardarán los siguientes datos:',
+            confirmText: editingId ? 'Actualizar' : 'Crear',
+            color: 'primary',
+            fields: [
+                { label: 'Nombre', value: form.name },
+                { label: 'RUT', value: form.rut },
+                { label: 'Contacto', value: form.contact_name },
+                { label: 'Email', value: form.contact_email },
+                { label: 'Teléfono', value: form.contact_phone },
+            ],
+        })
 
-        if (editingId) {
-            console.log('Updating client', editingId, form)
-            await updateClient(editingId, form)
-        } else {
-            await createClient(form)
+        if (!confirmed) return
+
+        try {
+            if (editingId) {
+                await updateClient(editingId, form)
+                showAlert('Cliente actualizado correctamente', 'success')
+            } else {
+                await createClient(form)
+                showAlert('Cliente creado correctamente', 'success')
+            }
+
+            setForm(emptyForm)
+            setEditingId(null)
+            await loadClients()
+        } catch (error) {
+            showBackendError(error, 'Error guardando cliente')
         }
 
-        setForm(emptyForm)
-        setEditingId(null)
-        await loadClients()
     }
 
     const handleEdit = async (client: Client) => {
@@ -83,17 +107,40 @@ const Clients = () => {
     }
 
     const handleDelete = async (id: string) => {
-        const confirmDelete = window.confirm('¿Eliminar cliente?')
 
-        if (!confirmDelete) return
+        const client = clients.find((c) => c.id === id)
+        if (!client) {
+            showAlert('Cliente no encontrado', 'danger')
+            return
+        }
+        const confirmed = await confirmAction({
+            title: 'Desactivar cliente',
+            message: '¿Seguro que deseas desactivar este cliente?',
+            confirmText: 'Desactivar',
+            color: 'danger',
+            fields: [
+                { label: 'Cliente', value: client.name },
+                { label: 'RUT', value: client.rut },
+            ],
+        })
 
-        await deleteClient(id)
-        await loadClients()
+        if (!confirmed) return
+
+        try {
+            await deleteClient(id)
+            showAlert('Cliente desactivado correctamente', 'success')
+            await loadClients()
+        } catch (error) {
+            showBackendError(error, 'Error desactivando cliente')
+        }
+
+        
     }
 
     const handleCancel = () => {
         setForm(emptyForm)
         setEditingId(null)
+        showAlert('Edicion cancelada', 'success')
     }
 
     useEffect(() => {

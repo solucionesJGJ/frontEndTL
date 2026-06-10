@@ -22,7 +22,7 @@ apiClient.interceptors.response.use(
         if (error.response?.status === 401) {
             localStorage.removeItem('token')
             localStorage.removeItem('user')
-
+            sessionStorage.clear();
             window.location.href = '/login'
         }
 

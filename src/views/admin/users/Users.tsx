@@ -49,7 +49,7 @@ const Users = () => {
         return roles.find((role) => role.id === form.role_id)
     }, [roles, form.role_id])
 
-    const isClientRole = selectedRole?.name === 'client'
+    const isClientRole = selectedRole?.name === 'client_operator'
 
     const loadData = async () => {
         const [usersData, rolesData, clientsData] = await Promise.all([
@@ -192,7 +192,7 @@ const Users = () => {
                             <option value="">Seleccione rol</option>
                             {roles.map((role) => (
                                 <option key={role.id} value={role.id}>
-                                    {role.name}
+                                    {role.nameDisplay.toUpperCase()}
                                 </option>
                             ))}
                         </CFormSelect>
@@ -256,7 +256,7 @@ const Users = () => {
                             <CTableRow key={user.id}>
                                 <CTableDataCell>{user.name}</CTableDataCell>
                                 <CTableDataCell>{user.email}</CTableDataCell>
-                                <CTableDataCell>{user.role?.name || '-'}</CTableDataCell>
+                                <CTableDataCell>{user.role?.name_display || '-'}</CTableDataCell>
                                 <CTableDataCell>{user.client?.name || '-'}</CTableDataCell>
                                 <CTableDataCell>{user.active ? 'Sí' : 'No'}</CTableDataCell>
                                 <CTableDataCell>

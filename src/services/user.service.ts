@@ -10,6 +10,7 @@ export type User = {
   role?: {
     id: string
     name: string
+    name_display: string
   }
   client?: {
     id: string
