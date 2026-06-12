@@ -30,7 +30,6 @@ import { getClients, type Client } from '../../../services/client.service'
 import { getGarmentTypes, type GarmentType } from '../../../services/garmentType.service'
 
 const emptyForm = {
-    client_id: '',
     garment_type_id: '',
     code: '',
     description: '',
@@ -72,8 +71,8 @@ const Garments = () => {
     }
 
     const handleSubmit = async () => {
-        if (!form.client_id || !form.garment_type_id || !form.code.trim()) {
-            alert('Cliente, tipo de prenda y código son obligatorios')
+        if (!form.garment_type_id || !form.code.trim()) {
+            alert('Tipo de prenda y código son obligatorios')
             return
         }
 
@@ -92,7 +91,6 @@ const Garments = () => {
         setEditingId(garment.id)
 
         setForm({
-            client_id: garment.client_id,
             garment_type_id: garment.garment_type_id,
             code: garment.code || '',
             description: garment.description || '',
@@ -137,7 +135,7 @@ const Garments = () => {
 
             <CCardBody>
                 <CRow className="mb-3">
-                    <CCol md={4}>
+                    {/* <CCol md={4}>
                         <CFormSelect
                             label="Cliente"
                             value={form.client_id}
@@ -150,7 +148,7 @@ const Garments = () => {
                                 </option>
                             ))}
                         </CFormSelect>
-                    </CCol>
+                    </CCol> */}
 
                     <CCol md={3}>
                         <CFormSelect
@@ -251,7 +249,6 @@ const Garments = () => {
                 <CTable hover responsive>
                     <CTableHead>
                         <CTableRow>
-                            <CTableHeaderCell>Cliente</CTableHeaderCell>
                             <CTableHeaderCell>Tipo</CTableHeaderCell>
                             <CTableHeaderCell>Código</CTableHeaderCell>
                             <CTableHeaderCell>Descripción</CTableHeaderCell>
@@ -267,7 +264,6 @@ const Garments = () => {
                     <CTableBody>
                         {garments.map((garment) => (
                             <CTableRow key={garment.id}>
-                                <CTableDataCell>{garment.client?.name || '-'}</CTableDataCell>
                                 <CTableDataCell>{garment.type?.name || '-'}</CTableDataCell>
                                 <CTableDataCell>{garment.code}</CTableDataCell>
                                 <CTableDataCell>{garment.description || '-'}</CTableDataCell>

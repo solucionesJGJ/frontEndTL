@@ -44,7 +44,7 @@ import {
     type MovementStatus,
 } from '../../../services/movementStatus.service'
 
-import { getCurrentUser } from '../../../services/auth.service'
+import { getCurrentUser, getCurrentRole } from '../../../services/auth.service'
 
 import {
     getGarmentProcesses,
@@ -82,9 +82,11 @@ const OperatorBatchDetail = () => {
     const [movementForm, setMovementForm] = useState(emptyMovementForm)
     const [editingItemId, setEditingItemId] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
-    const [canMoveStock, setCanMoveStock] = useState(false);
     const [canManageBatchItems, setcanManageBatchItems] = useState(false)
     const user = getCurrentUser();
+    const role = getCurrentRole();
+    const canManageItems = role === 'admin' || role === 'client_operator'
+    const [canMoveStock, setCanMoveStock] = useState(role === 'admin' || role === 'warehouse_operator');
     const batchGarments = useMemo(() => {
         return items
             .map((item) => item.garment)
@@ -97,10 +99,9 @@ const OperatorBatchDetail = () => {
         return garments.filter(
             (garment) =>
                 garment.active &&
-                garment.client_id === batch.client_id &&
                 !items.some((item) => item.garment_id === garment.id),
         )
-    }, [garments, batch, items])
+    }, [garments, items])
 
     const loadData = async () => {
         const [
@@ -259,7 +260,7 @@ const OperatorBatchDetail = () => {
         if (!loading)
             load()
     }, [batchId])
-    
+
     const batchTotal = useMemo(() => {
         return items.reduce(
             (total, item) => total + Number(item.calculated_total || 0),
@@ -452,23 +453,25 @@ const OperatorBatchDetail = () => {
                                         </CTableDataCell>
                                         <CTableDataCell>{item.notes || '-'}</CTableDataCell>
                                         <CTableDataCell>
-                                            <div className="d-flex gap-2">
-                                                <CButton
-                                                    color="warning"
-                                                    size="sm"
-                                                    onClick={() => handleEditItem(item)}
-                                                >
-                                                    Editar
-                                                </CButton>
+                                            {canManageItems && batch?.current_status?.code === 'PENDIENTE_RECEPCION' && (
+                                                <div className="d-flex gap-2">
+                                                    <CButton
+                                                        color="warning"
+                                                        size="sm"
+                                                        onClick={() => handleEditItem(item)}
+                                                    >
+                                                        Editar
+                                                    </CButton>
 
-                                                <CButton
-                                                    color="danger"
-                                                    size="sm"
-                                                    onClick={() => handleRemoveItem(item.id)}
-                                                >
-                                                    Eliminar
-                                                </CButton>
-                                            </div>
+                                                    <CButton
+                                                        color="danger"
+                                                        size="sm"
+                                                        onClick={() => handleRemoveItem(item.id)}
+                                                    >
+                                                        Eliminar
+                                                    </CButton>
+                                                </div>
+                                            )}
                                         </CTableDataCell>
                                     </CTableRow>
                                 ))}
@@ -478,160 +481,165 @@ const OperatorBatchDetail = () => {
                 </CCard>)}
 
             {canMoveStock &&
-                (<CCard className="mb-4">
-                    <CCardHeader>
-                        <strong>Registrar movimiento</strong>
-                    </CCardHeader>
+                (
+                    <>
+                        <CCard className="mb-4">
+                            <CCardHeader>
+                                <strong>Registrar movimiento</strong>
+                            </CCardHeader>
 
-                    <CCardBody>
-                        <CRow className="mb-3">
-                            <CCol md={3}>
-                                <CFormSelect
-                                    label="Prenda"
-                                    value={movementForm.garment_id}
-                                    onChange={(e) =>
-                                        handleMovementChange('garment_id', e.target.value)
-                                    }
-                                >
-                                    <option value="">Seleccione prenda</option>
-                                    {batchGarments.map((garment) => (
-                                        <option key={garment.id} value={garment.id}>
-                                            {garment.code} - {garment.description || garment.type?.name}
-                                        </option>
-                                    ))}
-                                </CFormSelect>
-                            </CCol>
+                            <CCardBody>
+                                <CRow className="mb-3">
+                                    <CCol md={3}>
+                                        <CFormSelect
+                                            label="Prenda"
+                                            value={movementForm.garment_id}
+                                            onChange={(e) =>
+                                                handleMovementChange('garment_id', e.target.value)
+                                            }
+                                        >
+                                            <option value="">Seleccione prenda</option>
+                                            {batchGarments.map((garment) => (
+                                                <option key={garment.id} value={garment.id}>
+                                                    {garment.code} - {garment.description || garment.type?.name}
+                                                </option>
+                                            ))}
+                                        </CFormSelect>
+                                    </CCol>
 
-                            <CCol md={3}>
-                                <CFormSelect
-                                    label="Estado origen"
-                                    value={movementForm.from_status_id}
-                                    onChange={(e) =>
-                                        handleMovementChange('from_status_id', e.target.value)
-                                    }
-                                >
-                                    <option value="">Sin origen / ingreso inicial</option>
-                                    {statuses.map((status) => (
-                                        <option key={status.id} value={status.id}>
-                                            {status.name}
-                                        </option>
-                                    ))}
-                                </CFormSelect>
-                            </CCol>
+                                    <CCol md={3}>
+                                        <CFormSelect
+                                            label="Estado origen"
+                                            value={movementForm.from_status_id}
+                                            onChange={(e) =>
+                                                handleMovementChange('from_status_id', e.target.value)
+                                            }
+                                        >
+                                            <option value="">Sin origen / ingreso inicial</option>
+                                            {statuses.map((status) => (
+                                                <option key={status.id} value={status.id}>
+                                                    {status.name}
+                                                </option>
+                                            ))}
+                                        </CFormSelect>
+                                    </CCol>
 
-                            <CCol md={3}>
-                                <CFormSelect
-                                    label="Estado destino"
-                                    value={movementForm.to_status_id}
-                                    onChange={(e) =>
-                                        handleMovementChange('to_status_id', e.target.value)
-                                    }
-                                >
-                                    <option value="">Seleccione destino</option>
-                                    {statuses.map((status) => (
-                                        <option key={status.id} value={status.id}>
-                                            {status.name}
-                                        </option>
-                                    ))}
-                                </CFormSelect>
-                            </CCol>
+                                    <CCol md={3}>
+                                        <CFormSelect
+                                            label="Estado destino"
+                                            value={movementForm.to_status_id}
+                                            onChange={(e) =>
+                                                handleMovementChange('to_status_id', e.target.value)
+                                            }
+                                        >
+                                            <option value="">Seleccione destino</option>
+                                            {statuses.map((status) => (
+                                                <option key={status.id} value={status.id}>
+                                                    {status.name}
+                                                </option>
+                                            ))}
+                                        </CFormSelect>
+                                    </CCol>
 
-                            <CCol md={3}>
-                                <CFormSelect
-                                    label="Tipo movimiento"
-                                    value={movementForm.movement_type}
-                                    onChange={(e) =>
-                                        handleMovementChange('movement_type', e.target.value)
-                                    }
-                                >
-                                    <option value="recepcion">Recepción</option>
-                                    <option value="proceso">Proceso</option>
-                                    <option value="reproceso">Reproceso</option>
-                                    <option value="retorno">Retorno</option>
-                                    <option value="ajuste">Ajuste</option>
-                                </CFormSelect>
-                            </CCol>
-                        </CRow>
+                                    <CCol md={3}>
+                                        <CFormSelect
+                                            label="Tipo movimiento"
+                                            value={movementForm.movement_type}
+                                            onChange={(e) =>
+                                                handleMovementChange('movement_type', e.target.value)
+                                            }
+                                        >
+                                            <option value="recepcion">Recepción</option>
+                                            <option value="proceso">Proceso</option>
+                                            <option value="reproceso">Reproceso</option>
+                                            <option value="retorno">Retorno</option>
+                                            <option value="ajuste">Ajuste</option>
+                                        </CFormSelect>
+                                    </CCol>
+                                </CRow>
 
-                        <CRow className="mb-4">
-                            <CCol md={2}>
-                                <CFormInput
-                                    label="Cantidad"
-                                    type="number"
-                                    min={1}
-                                    value={movementForm.quantity}
-                                    onChange={(e) =>
-                                        handleMovementChange('quantity', Number(e.target.value))
-                                    }
-                                />
-                            </CCol>
+                                <CRow className="mb-4">
+                                    <CCol md={2}>
+                                        <CFormInput
+                                            label="Cantidad"
+                                            type="number"
+                                            min={1}
+                                            value={movementForm.quantity}
+                                            onChange={(e) =>
+                                                handleMovementChange('quantity', Number(e.target.value))
+                                            }
+                                        />
+                                    </CCol>
 
-                            <CCol md={8}>
-                                <CFormTextarea
-                                    label="Notas"
-                                    rows={1}
-                                    value={movementForm.notes}
-                                    onChange={(e) =>
-                                        handleMovementChange('notes', e.target.value)
-                                    }
-                                />
-                            </CCol>
+                                    <CCol md={8}>
+                                        <CFormTextarea
+                                            label="Notas"
+                                            rows={1}
+                                            value={movementForm.notes}
+                                            onChange={(e) =>
+                                                handleMovementChange('notes', e.target.value)
+                                            }
+                                        />
+                                    </CCol>
 
-                            <CCol md={2} className="d-flex align-items-end">
-                                <CButton color="primary" onClick={handleSubmitMovement}>
-                                    Registrar
-                                </CButton>
-                            </CCol>
-                        </CRow>
-                    </CCardBody>
-                </CCard>)}
+                                    <CCol md={2} className="d-flex align-items-end">
+                                        <CButton color="primary" onClick={handleSubmitMovement}>
+                                            Registrar
+                                        </CButton>
+                                    </CCol>
+                                </CRow>
+                            </CCardBody>
+                        </CCard>
 
-            <CCard>
-                <CCardHeader>
-                    <strong>Historial de movimientos</strong>
-                </CCardHeader>
+                        <CCard>
+                            <CCardHeader>
+                                <strong>Historial de movimientos</strong>
+                            </CCardHeader>
 
-                <CCardBody>
-                    <CTable hover responsive>
-                        <CTableHead>
-                            <CTableRow>
-                                <CTableHeaderCell>Fecha</CTableHeaderCell>
-                                <CTableHeaderCell>Prenda</CTableHeaderCell>
-                                <CTableHeaderCell>Desde</CTableHeaderCell>
-                                <CTableHeaderCell>Hacia</CTableHeaderCell>
-                                <CTableHeaderCell>Cantidad</CTableHeaderCell>
-                                <CTableHeaderCell>Tipo</CTableHeaderCell>
-                                <CTableHeaderCell>Usuario</CTableHeaderCell>
-                                <CTableHeaderCell>Notas</CTableHeaderCell>
-                            </CTableRow>
-                        </CTableHead>
+                            <CCardBody>
+                                <CTable hover responsive>
+                                    <CTableHead>
+                                        <CTableRow>
+                                            <CTableHeaderCell>Fecha</CTableHeaderCell>
+                                            <CTableHeaderCell>Prenda</CTableHeaderCell>
+                                            <CTableHeaderCell>Desde</CTableHeaderCell>
+                                            <CTableHeaderCell>Hacia</CTableHeaderCell>
+                                            <CTableHeaderCell>Cantidad</CTableHeaderCell>
+                                            <CTableHeaderCell>Tipo</CTableHeaderCell>
+                                            <CTableHeaderCell>Usuario</CTableHeaderCell>
+                                            <CTableHeaderCell>Notas</CTableHeaderCell>
+                                        </CTableRow>
+                                    </CTableHead>
 
-                        <CTableBody>
-                            {movements.map((movement) => (
-                                <CTableRow key={movement.id}>
-                                    <CTableDataCell>
-                                        {new Date(movement.createdAt).toLocaleString()}
-                                    </CTableDataCell>
-                                    <CTableDataCell>
-                                        {movement.garment?.code || '-'}
-                                    </CTableDataCell>
-                                    <CTableDataCell>
-                                        {movement.from_status?.name || 'Ingreso inicial'}
-                                    </CTableDataCell>
-                                    <CTableDataCell>
-                                        {movement.to_status?.name || '-'}
-                                    </CTableDataCell>
-                                    <CTableDataCell>{movement.quantity}</CTableDataCell>
-                                    <CTableDataCell>{movement.movement_type}</CTableDataCell>
-                                    <CTableDataCell>{movement.creator?.name || '-'}</CTableDataCell>
-                                    <CTableDataCell>{movement.notes || '-'}</CTableDataCell>
-                                </CTableRow>
-                            ))}
-                        </CTableBody>
-                    </CTable>
-                </CCardBody>
-            </CCard>
+                                    <CTableBody>
+                                        {movements.map((movement) => (
+                                            <CTableRow key={movement.id}>
+                                                <CTableDataCell>
+                                                    {new Date(movement.createdAt).toLocaleString()}
+                                                </CTableDataCell>
+                                                <CTableDataCell>
+                                                    {movement.garment?.code || '-'}
+                                                </CTableDataCell>
+                                                <CTableDataCell>
+                                                    {movement.from_status?.name || 'Ingreso inicial'}
+                                                </CTableDataCell>
+                                                <CTableDataCell>
+                                                    {movement.to_status?.name || '-'}
+                                                </CTableDataCell>
+                                                <CTableDataCell>{movement.quantity}</CTableDataCell>
+                                                <CTableDataCell>{movement.movement_type}</CTableDataCell>
+                                                <CTableDataCell>{movement.creator?.name || '-'}</CTableDataCell>
+                                                <CTableDataCell>{movement.notes || '-'}</CTableDataCell>
+                                            </CTableRow>
+                                        ))}
+                                    </CTableBody>
+                                </CTable>
+                            </CCardBody>
+                        </CCard>
+                    </>
+                )}
         </>
+
     )
 }
 

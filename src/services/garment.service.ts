@@ -2,7 +2,6 @@ import { apiClient } from '../api/apiClient'
 
 export type Garment = {
   id: string
-  client_id: string
   garment_type_id: string
   code: string
   value:number
@@ -11,11 +10,6 @@ export type Garment = {
   color?: string | null
   barcode?: string | null
   active: boolean
-  client?: {
-    id: string
-    name: string
-    rut: string | null
-  }
   type?: {
     id: string
     name: string

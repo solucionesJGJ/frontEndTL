@@ -155,6 +155,12 @@ export const getNavByRole = ({ role }: { role?: string }) => {
         to: '/operator/stock',
         icon: <CIcon icon={cilStorage} customClassName="nav-icon" />,
       },
+      {
+        component: CNavItem,
+        name: 'Dashboard Planta',
+        to: '/dashboard/plant',
+        icon: <CIcon icon={cilSpeedometer} customClassName="nav-icon" />,
+      },
     )
   }
 

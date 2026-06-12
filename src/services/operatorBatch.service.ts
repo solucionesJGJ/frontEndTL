@@ -54,3 +54,40 @@ export async function createOperatorBatch(
     const { data } = await apiClient.post('/operator/batches', payload)
     return data.data as OperatorBatch
 }
+
+export async function receiveOperatorBatch(id: string, notes?: string) {
+    const { data } = await apiClient.patch(`/operator/batches/${id}/receive`, {
+        notes,
+    })
+
+    return data.data as OperatorBatch
+}
+
+export async function evaluateOperatorBatch(
+    id: string,
+    can_process: boolean,
+    notes?: string,
+) {
+    const { data } = await apiClient.patch(`/operator/batches/${id}/evaluate`, {
+        can_process,
+        notes,
+    })
+
+    return data.data as OperatorBatch
+}
+
+export async function changeOperatorBatchStatus(
+  id: string,
+  next_status_code: string,
+  notes?: string,
+) {
+  const { data } = await apiClient.patch(
+    `/operator/batches/${id}/change-status`,
+    {
+      next_status_code,
+      notes,
+    },
+  )
+
+  return data.data as OperatorBatch
+}

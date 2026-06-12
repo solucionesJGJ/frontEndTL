@@ -23,6 +23,8 @@ import {
     createOperatorBatch,
     getOperatorBatches,
     type OperatorBatch,
+    evaluateOperatorBatch,
+    changeOperatorBatchStatus
 } from '../../../services/operatorBatch.service'
 
 import { getClients, type Client } from '../../../services/client.service'
@@ -31,6 +33,10 @@ import {
     isClientOperator,
     isAdmin,
 } from '../../../services/auth.service'
+
+import { receiveOperatorBatch } from '../../../services/operatorBatch.service'
+import { getCurrentRole } from '../../../services/auth.service'
+import { useFeedback } from '../../../context/FeedbackContext'
 
 const emptyForm = {
     client_id: '',
@@ -50,6 +56,10 @@ const OperatorBatches = () => {
     const currentUser = getCurrentUser()
     const clientOperator = isClientOperator()
     const adminUser = isAdmin()
+    const role = getCurrentRole()
+    const canCreateBatch = role === 'admin' || role === 'client_operator'
+    const canOperatePlant = role === 'admin' || role === 'warehouse_operator'
+    const { confirmAction, showAlert, showBackendError } = useFeedback()
 
     const loadData = async () => {
         const [batchesData, clientsData] = await Promise.all([
@@ -68,6 +78,136 @@ const OperatorBatches = () => {
             }))
         } else {
             setClients(clientsData.filter((client) => client.active))
+        }
+    }
+
+    const getAvailableActions = (statusCode?: string) => {
+        switch (statusCode) {
+            case 'EN_PROCESO':
+                return [
+                    { label: 'Enviar a reproceso', code: 'REPROCESO', color: 'warning' },
+                    { label: 'Preparar despacho', code: 'PREPARADO_DESPACHO', color: 'primary' },
+                ]
+
+            case 'REPROCESO':
+                return [
+                    { label: 'Volver a proceso', code: 'EN_PROCESO', color: 'primary' },
+                    { label: 'Preparar despacho', code: 'PREPARADO_DESPACHO', color: 'primary' },
+                ]
+
+            case 'DERIVADO_EXTERNO':
+                return [
+                    { label: 'Enviar a traslado', code: 'EN_TRASLADO', color: 'primary' },
+                ]
+
+            case 'PREPARADO_DESPACHO':
+                return [
+                    { label: 'Enviar a traslado', code: 'EN_TRASLADO', color: 'primary' },
+                ]
+
+            case 'EN_TRASLADO':
+                return [
+                    { label: 'Retornar cliente', code: 'RETORNADO_CLIENTE', color: 'success' },
+                ]
+
+            case 'RETORNADO_CLIENTE':
+                return [
+                    { label: 'Cerrar lote', code: 'CERRADO', color: 'dark' },
+                ]
+
+            default:
+                return []
+        }
+    }
+
+    const handleChangeStatus = async (
+        batch: OperatorBatch,
+        nextStatusCode: string,
+        label: string,
+    ) => {
+        const confirmed = await confirmAction({
+            title: label,
+            message: '¿Confirmas cambiar el estado del lote?',
+            confirmText: 'Confirmar',
+            color: nextStatusCode === 'CERRADO' ? 'danger' : 'primary',
+            fields: [
+                { label: 'Lote', value: batch.batch_number },
+                { label: 'Cliente', value: batch.client?.name },
+                { label: 'Estado actual', value: batch.current_status?.name },
+                { label: 'Nuevo estado', value: nextStatusCode },
+            ],
+        })
+
+        if (!confirmed) return
+
+        try {
+            await changeOperatorBatchStatus(batch.id, nextStatusCode)
+            showAlert('Estado actualizado correctamente', 'success')
+            await loadData()
+        } catch (error) {
+            showBackendError(error, 'Error cambiando estado')
+        }
+    }
+
+    const handleReceive = async (batch: OperatorBatch) => {
+        const confirmed = await confirmAction({
+            title: 'Recepcionar lote',
+            message: '¿Confirmas la recepción de este lote en planta?',
+            confirmText: 'Recepcionar',
+            color: 'primary',
+            fields: [
+                { label: 'Lote', value: batch.batch_number },
+                { label: 'Cliente', value: batch.client?.name },
+                { label: 'Estado actual', value: batch.current_status?.name },
+            ],
+        })
+
+        if (!confirmed) return
+
+        try {
+            await receiveOperatorBatch(batch.id)
+            showAlert('Lote recepcionado correctamente', 'success')
+            await loadData()
+        } catch (error) {
+            showBackendError(error, 'Error recepcionando lote')
+        }
+    }
+
+    const handleEvaluate = async (
+        batch: OperatorBatch,
+        canProcess: boolean,
+    ) => {
+        const confirmed = await confirmAction({
+            title: canProcess ? 'Enviar a proceso' : 'Derivar externo',
+            message: canProcess
+                ? '¿Confirmas que este lote puede procesarse en planta?'
+                : '¿Confirmas que este lote debe derivarse externamente?',
+            confirmText: canProcess ? 'Procesar' : 'Derivar',
+            color: canProcess ? 'primary' : 'warning',
+            fields: [
+                { label: 'Lote', value: batch.batch_number },
+                { label: 'Cliente', value: batch.client?.name },
+                { label: 'Estado actual', value: batch.current_status?.name },
+                {
+                    label: 'Nuevo estado',
+                    value: canProcess ? 'En Proceso' : 'Derivado Externo',
+                },
+            ],
+        })
+
+        if (!confirmed) return
+
+        try {
+            await evaluateOperatorBatch(batch.id, canProcess)
+            showAlert(
+                canProcess
+                    ? 'Lote enviado a proceso correctamente'
+                    : 'Lote derivado externamente correctamente',
+                'success',
+            )
+            await loadData()
+        } catch (error) {
+            showBackendError(error, 'Error evaluando lote')
         }
     }
 
@@ -123,7 +263,6 @@ const OperatorBatches = () => {
         }
     }
     const user = getCurrentUser()
-    const role = user?.role?.name
     const isClientOperatorUser = role === 'client_operator'
     useEffect(() => {
         const load = async () => {
@@ -145,12 +284,13 @@ const OperatorBatches = () => {
     return (
         <CCard>
             <CCardHeader>
-                <strong>Recepción de lotes</strong>
+                <strong>Creacion de lotes</strong>
             </CCardHeader>
 
             <CCardBody>
-                {(adminUser || isClientOperatorUser )&& (
-                    <><CRow className="mb-3">
+                {(adminUser || isClientOperatorUser) && (
+                    <>
+                    <CRow className="mb-3">
                         <CCol md={4}>
                             <CFormSelect
                                 label="Cliente"
@@ -256,13 +396,56 @@ const OperatorBatches = () => {
                                         : '-'}
                                 </CTableDataCell>
                                 <CTableDataCell>
-                                    <CButton
-                                        color="primary"
-                                        size="sm"
-                                        onClick={() => navigate(`/operator/batches/${batch.id}`)}
-                                    >
-                                        Ver detalle
-                                    </CButton>
+                                    <div className="d-flex gap-2">
+                                        <CButton
+                                            color="primary"
+                                            size="sm"
+                                            onClick={() => navigate(`/operator/batches/${batch.id}`)}
+                                        >
+                                            Ver detalle
+                                        </CButton>
+                                        {canOperatePlant && batch.current_status?.code === 'PENDIENTE_RECEPCION' && (
+                                            <CButton
+                                                color="success"
+                                                size="sm"
+                                                onClick={() => handleReceive(batch)}
+                                            >
+                                                Recepcionar
+                                            </CButton>
+                                        )}
+                                        {canOperatePlant && batch.current_status?.code === 'RECEPCIONADO' && (
+                                            <>
+                                                <CButton
+                                                    color="primary"
+                                                    size="sm"
+                                                    onClick={() => handleEvaluate(batch, true)}
+                                                >
+                                                    Procesar
+                                                </CButton>
+
+                                                <CButton
+                                                    color="warning"
+                                                    size="sm"
+                                                    onClick={() => handleEvaluate(batch, false)}
+                                                >
+                                                    Derivar
+                                                </CButton>
+                                            </>
+                                        )}
+                                        {canOperatePlant &&
+                                            getAvailableActions(batch.current_status?.code).map((action) => (
+                                                <CButton
+                                                    key={action.code}
+                                                    color={action.color as any}
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        handleChangeStatus(batch, action.code, action.label)
+                                                    }
+                                                >
+                                                    {action.label}
+                                                </CButton>
+                                            ))}
+                                    </div>
                                 </CTableDataCell>
                             </CTableRow>
                         ))}
