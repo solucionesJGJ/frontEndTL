@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { /* Link, */ useNavigate } from 'react-router-dom'
 import {
   CButton,
@@ -19,8 +19,8 @@ import { login } from '../../../services/auth.service'
 
 const Login = () => {
   const navigate = useNavigate()
-  const [email, setEmail] = useState('admin@app.cl')
-  const [password, setPassword] = useState('Admin123456')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -34,6 +34,15 @@ const Login = () => {
       setError('Credenciales inválidas')
     }
   }
+
+  useEffect(() => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    sessionStorage.clear()
+
+    setEmail('')
+    setPassword('')
+  }, [])
 
   return (
     <div className="bg-body-tertiary min-vh-100 d-flex flex-row align-items-center">
@@ -52,7 +61,7 @@ const Login = () => {
                     <CInputGroup className="mb-3">
                       <CFormInput
                         placeholder="Email"
-                        autoComplete="email"
+                        autoComplete="new-email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                       />
@@ -62,7 +71,7 @@ const Login = () => {
                       <CFormInput
                         type="password"
                         placeholder="Password"
-                        autoComplete="current-password"
+                        autoComplete="new-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                       />
@@ -74,7 +83,7 @@ const Login = () => {
                   </CForm>
                 </CCardBody>
               </CCard>
-             {/*  <CCard className="text-white bg-primary py-5" style={{ width: '44%' }}>
+              {/*  <CCard className="text-white bg-primary py-5" style={{ width: '44%' }}>
                 <CCardBody className="text-center">
                   <div>
                     <h2>Sign up</h2>

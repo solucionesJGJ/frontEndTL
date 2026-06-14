@@ -130,7 +130,13 @@ export const getNavByRole = ({ role }: { role?: string }) => {
       },
       {
         component: CNavItem,
-        name: 'Crear lotes',
+        name: 'Dashboard Cliente',
+        to: '/dashboard/client',
+        icon: <CIcon icon={cilSpeedometer} customClassName="nav-icon" />,
+      },
+      {
+        component: CNavItem,
+        name: 'Mis lotes',
         to: '/operator/batches',
         icon: <CIcon icon={cilList} customClassName="nav-icon" />,
       },
@@ -145,6 +151,12 @@ export const getNavByRole = ({ role }: { role?: string }) => {
       },
       {
         component: CNavItem,
+        name: 'Dashboard Planta',
+        to: '/dashboard/plant',
+        icon: <CIcon icon={cilSpeedometer} customClassName="nav-icon" />,
+      },
+      {
+        component: CNavItem,
         name: 'Procesar lotes',
         to: '/operator/batches',
         icon: <CIcon icon={cilList} customClassName="nav-icon" />,
@@ -154,12 +166,6 @@ export const getNavByRole = ({ role }: { role?: string }) => {
         name: 'Stock actual',
         to: '/operator/stock',
         icon: <CIcon icon={cilStorage} customClassName="nav-icon" />,
-      },
-      {
-        component: CNavItem,
-        name: 'Dashboard Planta',
-        to: '/dashboard/plant',
-        icon: <CIcon icon={cilSpeedometer} customClassName="nav-icon" />,
       },
     )
   }

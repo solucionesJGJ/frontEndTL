@@ -32,9 +32,6 @@ export type OperatorBatch = {
 
 export type CreateOperatorBatchPayload = {
     client_id: string
-    batch_number: string
-    origin_location?: string
-    destination_location?: string
     notes?: string
 }
 
@@ -77,17 +74,38 @@ export async function evaluateOperatorBatch(
 }
 
 export async function changeOperatorBatchStatus(
-  id: string,
-  next_status_code: string,
-  notes?: string,
+    id: string,
+    next_status_code: string,
+    notes?: string,
 ) {
-  const { data } = await apiClient.patch(
-    `/operator/batches/${id}/change-status`,
-    {
-      next_status_code,
-      notes,
-    },
-  )
+    const { data } = await apiClient.patch(
+        `/operator/batches/${id}/change-status`,
+        {
+            next_status_code,
+            notes,
+        },
+    )
 
-  return data.data as OperatorBatch
+    return data.data as OperatorBatch
+}
+
+export async function dispatchClientBatch(id: string) {
+    const { data } = await apiClient.patch(`/operator/batches/${id}/dispatch`);
+    return data.data as OperatorBatch;
+}
+
+export type BatchNumberPreview = {
+    batch_number: string
+    origin_location: string
+    destination_location: string
+}
+
+export async function previewOperatorBatchNumber(client_id?: string) {
+    const { data } = await apiClient.get('/operator/batches/preview-number', {
+        params: {
+            client_id,
+        },
+    })
+
+    return data.data as BatchNumberPreview
 }

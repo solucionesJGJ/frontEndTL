@@ -24,6 +24,8 @@ import OperatorBatchDetail from './views/operator/batches/OperatorBatchDetail'
 import Stock from './views/operator/stock/Stock'
 import GarmentProcesses from './views/admin/garment-processes/GarmentProcesses'
 import PlantDashboardView from './views/dashboard/PlantDashboard'
+import ClientDashboardView from './views/dashboard/ClientDashboard'
+import { getCurrentRole } from './services/auth.service'
 
 // Dashboard
 const Dashboard = React.lazy(() => import('./views/dashboard/Dashboard'))
@@ -78,6 +80,8 @@ const Modals = React.lazy(() => import('./views/notifications/modals/Modals'))
 const Toasts = React.lazy(() => import('./views/notifications/toasts/Toasts'))
 
 const Widgets = React.lazy(() => import('./views/widgets/Widgets'))
+const role = getCurrentRole();
+const isClient = role === 'client_operator'
 
 /**
  * Array of route configuration objects
@@ -98,7 +102,7 @@ const Widgets = React.lazy(() => import('./views/widgets/Widgets'))
  */
 export const routes = [
   { path: '/', exact: true, name: 'Home' },
-  { path: '/dashboard', name: 'Dashboard', element: Dashboard },
+  { path: '/dashboard', name: 'Dashboard', element: (!isClient ? PlantDashboardView : ClientDashboardView) },
   { path: '/admin/clients', name: 'Clientes', element: Clients },
   {
     path: '/admin/garment-types', name: 'Tipos de prenda', element: GarmentTypes,
@@ -120,6 +124,11 @@ export const routes = [
     path: '/dashboard/plant',
     name: 'Dashboard Planta',
     element: PlantDashboardView,
+  },
+  {
+    path: '/dashboard/client',
+    name: 'Dashboard Cliente',
+    element: ClientDashboardView,
   }
   /* { path: '/theme', name: 'Theme', element: Colors, exact: true },
   { path: '/theme/colors', name: 'Colors', element: Colors },

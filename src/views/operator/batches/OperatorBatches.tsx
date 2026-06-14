@@ -24,7 +24,9 @@ import {
     getOperatorBatches,
     type OperatorBatch,
     evaluateOperatorBatch,
-    changeOperatorBatchStatus
+    changeOperatorBatchStatus,
+    receiveOperatorBatch,
+    previewOperatorBatchNumber
 } from '../../../services/operatorBatch.service'
 
 import { getClients, type Client } from '../../../services/client.service'
@@ -34,15 +36,14 @@ import {
     isAdmin,
 } from '../../../services/auth.service'
 
-import { receiveOperatorBatch } from '../../../services/operatorBatch.service'
 import { getCurrentRole } from '../../../services/auth.service'
 import { useFeedback } from '../../../context/FeedbackContext'
 
 const emptyForm = {
     client_id: '',
     batch_number: '',
-    origin_location: '',
-    destination_location: '',
+    origin_location: 'Cliente',
+    destination_location: 'Planta',
     notes: '',
 }
 
@@ -69,15 +70,42 @@ const OperatorBatches = () => {
 
         setBatches(batchesData)
 
-        if (clientOperator && currentUser?.client) {
+        if (canCreateBatch && currentUser?.client) {
             setClients([currentUser.client])
 
             setForm((prev) => ({
                 ...prev,
                 client_id: currentUser.client.id,
             }))
+
+            await loadBatchPreview(currentUser.client.id)
         } else {
             setClients(clientsData.filter((client) => client.active))
+        }
+    }
+
+    const loadBatchPreview = async (clientId: string) => {
+        if (!clientId) {
+            setForm((prev) => ({
+                ...prev,
+                batch_number: '',
+                origin_location: 'Cliente',
+                destination_location: 'Planta',
+            }))
+            return
+        }
+
+        try {
+            const preview = await previewOperatorBatchNumber(clientId)
+
+            setForm((prev) => ({
+                ...prev,
+                batch_number: preview.batch_number,
+                origin_location: preview.origin_location,
+                destination_location: preview.destination_location,
+            }))
+        } catch (error) {
+            console.error(error)
         }
     }
 
@@ -241,12 +269,7 @@ const OperatorBatches = () => {
             setLoading(true)
 
             await createOperatorBatch({
-                client_id: clientOperator
-                    ? currentUser.client.id
-                    : form.client_id,
-                batch_number: form.batch_number,
-                origin_location: form.origin_location,
-                destination_location: form.destination_location,
+                client_id: clientOperator ? currentUser.client.id : form.client_id,
                 notes: form.notes,
             })
 
@@ -262,18 +285,10 @@ const OperatorBatches = () => {
             setLoading(false)
         }
     }
-    const user = getCurrentUser()
-    const isClientOperatorUser = role === 'client_operator'
     useEffect(() => {
         const load = async () => {
             setLoading(true);
             await loadData();
-            if (isClientOperatorUser && user?.client?.id) {
-                setForm((prev) => ({
-                    ...prev,
-                    client_id: user.client.id,
-                }))
-            }
             setLoading(false);
         }
         if (!loading) {
@@ -288,59 +303,60 @@ const OperatorBatches = () => {
             </CCardHeader>
 
             <CCardBody>
-                {(adminUser || isClientOperatorUser) && (
+                {(adminUser || canCreateBatch) && (
                     <>
-                    <CRow className="mb-3">
-                        <CCol md={4}>
-                            <CFormSelect
-                                label="Cliente"
-                                value={form.client_id}
-                                disabled={clientOperator}
-                                onChange={(e) => handleChange('client_id', e.target.value)}
-                            >
-                                <option value="">Seleccione cliente</option>
+                        <CRow className="mb-3">
+                            <CCol md={4}>
+                                <CFormSelect
+                                    label="Cliente"
+                                    value={form.client_id}
+                                    disabled={canCreateBatch}
+                                    onChange={async (e) => {
+                                        const clientId = e.target.value
+                                        handleChange('client_id', clientId)
+                                        await loadBatchPreview(clientId)
+                                    }}
+                                >
+                                    <option value="">Seleccione cliente</option>
 
-                                {clients.map((client) => (
-                                    <option key={client.id} value={client.id}>
-                                        {client.name} {client.rut ? `(${client.rut})` : ''}
-                                    </option>
-                                ))}
-                            </CFormSelect>
-                        </CCol>
+                                    {clients.map((client) => (
+                                        <option key={client.id} value={client.id}>
+                                            {client.name} {client.rut ? `(${client.rut})` : ''}
+                                        </option>
+                                    ))}
+                                </CFormSelect>
+                            </CCol>
 
-                        <CCol md={3}>
-                            <CFormInput
-                                label="Número de lote"
-                                value={form.batch_number}
-                                onChange={(e) =>
-                                    handleChange('batch_number', e.target.value)
-                                }
-                                placeholder="Ej: LOTE-0001"
-                            />
-                        </CCol>
+                            <CCol md={3}>
+                                <CFormInput
+                                    label="Número de lote"
+                                    value={form.batch_number}
+                                    disabled
+                                />
+                            </CCol>
 
-                        <CCol md={3}>
-                            <CFormInput
-                                label="Origen"
-                                value={form.origin_location}
-                                onChange={(e) =>
-                                    handleChange('origin_location', e.target.value)
-                                }
-                                placeholder="Ej: Cliente"
-                            />
-                        </CCol>
+                            <CCol md={3}>
+                                <CFormInput
+                                    label="Origen"
+                                    value={form.origin_location}
+                                    onChange={(e) =>
+                                        handleChange('origin_location', e.target.value)
+                                    }
+                                    disabled
+                                />
+                            </CCol>
 
-                        <CCol md={2}>
-                            <CFormInput
-                                label="Destino"
-                                value={form.destination_location}
-                                onChange={(e) =>
-                                    handleChange('destination_location', e.target.value)
-                                }
-                                placeholder="Ej: Planta"
-                            />
-                        </CCol>
-                    </CRow>
+                            <CCol md={2}>
+                                <CFormInput
+                                    label="Destino"
+                                    value={form.destination_location}
+                                    onChange={(e) =>
+                                        handleChange('destination_location', e.target.value)
+                                    }
+                                    disabled
+                                />
+                            </CCol>
+                        </CRow>
 
                         <CRow className="mb-4">
                             <CCol md={8}>
