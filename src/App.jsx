@@ -15,13 +15,13 @@
  */
 
 import React, { Suspense, useEffect } from 'react'
-import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { HashRouter, Navigate, Route, Routes, BrowserRouter } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 
 import { CSpinner, useColorModes } from '@coreui/react'
 import ProtectedRoute from '../src/components/ProtectedRoute'
 import './scss/style.scss'
-import Login from './views/pages/login/Login'
+//import Login from './views/pages/login/Login'
 
 // We use those styles to show code examples, you should remove them in your application.
 import './scss/examples.scss'
@@ -30,7 +30,7 @@ import './scss/examples.scss'
 const DefaultLayout = React.lazy(() => import('./layout/DefaultLayout'))
 
 // Pages
-//const Login = React.lazy(() => import('./views/pages/login/Login'))
+const Login = React.lazy(() => import('./views/pages/login/Login'))
 const Register = React.lazy(() => import('./views/pages/register/Register'))
 const Page404 = React.lazy(() => import('./views/pages/page404/Page404'))
 const Page500 = React.lazy(() => import('./views/pages/page500/Page500'))
@@ -76,7 +76,7 @@ const App = () => {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <HashRouter>
+    <BrowserRouter>
       <Suspense
         fallback={
           <div className="pt-3 text-center">
@@ -101,7 +101,7 @@ const App = () => {
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Suspense>
-    </HashRouter>
+    </BrowserRouter>
   )
 }
 
