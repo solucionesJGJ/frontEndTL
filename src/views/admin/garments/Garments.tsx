@@ -187,7 +187,7 @@ const Garments = () => {
                 <CRow className="mb-3">
                     <CCol md={3}>
                         <CFormInput
-                            label="Talla / Medida"
+                            label="Nombre"
                             value={form.size}
                             onChange={(e) => handleChange('size', e.target.value)}
                             placeholder="Ej: King, M, 180x200"

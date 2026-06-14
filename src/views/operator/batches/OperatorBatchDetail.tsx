@@ -514,7 +514,7 @@ const OperatorBatchDetail = () => {
 
                                     {garments.map((garment) => (
                                         <option key={garment.id} value={garment.id}>
-                                            {garment.code} - {garment.description || garment.type?.name}
+                                            {garment.size} - {garment.description || garment.type?.name}
                                         </option>
                                     ))}
                                 </CFormSelect>
