@@ -119,10 +119,20 @@ export const getNavByRole = ({ role }: { role?: string }) => {
         to: '/admin/garment-processes',
         icon: <CIcon icon={cilList} customClassName="nav-icon" />,
       },
+      {
+        component: CNavTitle,
+        name: 'Operario Cliente',
+      },
+      {
+        component: CNavItem,
+        name: 'Mis lotes',
+        to: '/operator/batches',
+        icon: <CIcon icon={cilList} customClassName="nav-icon" />,
+      },
     )
   }
 
-  if (role === 'admin' || role === 'client_operator') {
+  if (role === 'client_operator') {
     nav.push(
       {
         component: CNavTitle,
