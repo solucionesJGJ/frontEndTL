@@ -46,7 +46,7 @@ const AppHeaderDropdown = () => {
         <span className="ms-2 d-none d-md-block">{user ? user.role.name_display.toUpperCase() : 'Rol'}</span>
       </CDropdownToggle>
       <CDropdownMenu className="pt-0" placement="bottom-end">
-        <CDropdownHeader className="bg-body-secondary fw-semibold mb-2">Account</CDropdownHeader>
+      {/*   <CDropdownHeader className="bg-body-secondary fw-semibold mb-2">Account</CDropdownHeader>
         <CDropdownItem href="#">
           <CIcon icon={cilBell} className="me-2" />
           Updates
@@ -97,11 +97,11 @@ const AppHeaderDropdown = () => {
           <CBadge color="primary" className="ms-2">
             42
           </CBadge>
-        </CDropdownItem>
+        </CDropdownItem> */}
         <CDropdownDivider />
         <CDropdownItem onClick={handleLogout}>
           <CIcon icon={cilLockLocked} className="me-2" />
-          Lock Account
+          Cerrar Sesion
         </CDropdownItem>
       </CDropdownMenu>
     </CDropdown>

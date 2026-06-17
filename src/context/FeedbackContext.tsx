@@ -2,6 +2,9 @@ import React, { createContext, useContext, useState } from 'react'
 import {
     CAlert,
     CButton,
+    CFormCheck,
+    CFormLabel,
+    CFormTextarea,
     CModal,
     CModalBody,
     CModalFooter,
@@ -16,10 +19,20 @@ type ConfirmField = {
     value: string | number | boolean | null | undefined
 }
 
+type ConfirmDetail = {
+    item: string
+    quantity: string | number
+}
+
 type ConfirmOptions = {
     title?: string
     message?: string
     fields?: ConfirmField[]
+    details?: ConfirmDetail[]
+    showConformityCheck?: boolean
+    observationRequired?: boolean
+    observationLabel?: string
+    observationPlaceholder?: string
     confirmText?: string
     cancelText?: string
     color?: 'primary' | 'danger' | 'warning' | 'success'
@@ -34,7 +47,11 @@ type AlertState = {
 type FeedbackContextType = {
     showAlert: (message: string, color?: AlertColor) => void
     showBackendError: (error: any, fallback?: string) => void
-    confirmAction: (options: ConfirmOptions) => Promise<boolean>
+    confirmAction: (options: ConfirmOptions) => Promise<{
+        confirmed: boolean
+        observation?: string
+        isConform?:boolean
+    }>
 }
 
 const FeedbackContext = createContext<FeedbackContextType | null>(null)
@@ -48,7 +65,9 @@ export function FeedbackProvider({ children }: { children: React.ReactNode }) {
 
     const [confirmVisible, setConfirmVisible] = useState(false)
     const [confirmOptions, setConfirmOptions] = useState<ConfirmOptions>({})
-    const [resolver, setResolver] = useState<((value: boolean) => void) | null>(null)
+    const [resolver, setResolver] = useState<((value: { confirmed: boolean; observation?: string; isConform?: boolean }) => void) | null>(null)
+    const [observation, setObservation] = useState('')
+    const [isConform, setIsConform] = useState(true)
 
     const showAlert = (message: string, color: AlertColor = 'info') => {
         setAlert({
@@ -86,21 +105,32 @@ export function FeedbackProvider({ children }: { children: React.ReactNode }) {
         })
 
         setConfirmVisible(true)
+        setIsConform(true)
+        setObservation('')
 
-        return new Promise<boolean>((resolve) => {
+        return new Promise<{
+            confirmed: boolean
+            observation?: string
+            isConform?: boolean
+        }>((resolve) => {
+            // store resolver function (wrap to avoid React treating it as updater)
             setResolver(() => resolve)
         })
     }
 
     const handleConfirm = () => {
         setConfirmVisible(false)
-        resolver?.(true)
+        resolver?.({
+            confirmed: true,
+            observation,
+            isConform,
+        })
         setResolver(null)
     }
 
     const handleCancel = () => {
         setConfirmVisible(false)
-        resolver?.(false)
+        resolver?.({ confirmed: false })
         setResolver(null)
     }
 
@@ -161,6 +191,63 @@ export function FeedbackProvider({ children }: { children: React.ReactNode }) {
                             ))}
                         </div>
                     )}
+                    {confirmOptions.details && confirmOptions.details.length > 0 && (
+                        <div className="mt-3">
+                            <strong>Detalle del lote</strong>
+
+                            <div className="table-responsive mt-2">
+                                <table className="table table-sm table-bordered mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Artículo</th>
+                                            <th className="text-end">Cantidad</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        {confirmOptions.details.map((detail, index) => (
+                                            <tr key={index}>
+                                                <td>{detail.item}</td>
+                                                <td className="text-end">{detail.quantity}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                    {confirmOptions.showConformityCheck && (
+                        <div className="mt-3">
+                            <CFormCheck
+                                id="conformity-check"
+                                label="Pedido recibido conforme"
+                                checked={isConform}
+                                onChange={(e) => setIsConform(e.target.checked)}
+                            />
+                        </div>
+                    )}
+                    {(!isConform || !confirmOptions.showConformityCheck) && (
+                        <div className="mt-3">
+                            <CFormLabel>
+                                {confirmOptions.observationLabel || 'Observaciones'}
+                            </CFormLabel>
+
+                            <CFormTextarea
+                                rows={4}
+                                value={observation}
+                                placeholder={
+                                    confirmOptions.observationPlaceholder ||
+                                    'Ingrese observaciones'
+                                }
+                                onChange={(e) => setObservation(e.target.value)}
+                            />
+                            {!isConform && !observation.trim() && (
+                                <small className="text-danger">
+                                    Debe indicar una observación si el pedido no fue recibido conforme.
+                                </small>
+                            )}
+                        </div>
+                    )}
                 </CModalBody>
 
                 <CModalFooter>
@@ -168,7 +255,10 @@ export function FeedbackProvider({ children }: { children: React.ReactNode }) {
                         {confirmOptions.cancelText}
                     </CButton>
 
-                    <CButton color={confirmOptions.color} onClick={handleConfirm}>
+                    <CButton color={confirmOptions.color} onClick={handleConfirm} disabled={
+                        !isConform &&
+                        !observation.trim()
+                    }>
                         {confirmOptions.confirmText}
                     </CButton>
                 </CModalFooter>

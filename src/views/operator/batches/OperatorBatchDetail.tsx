@@ -413,6 +413,14 @@ const OperatorBatchDetail = () => {
 
     const handleDispatchBatch = async () => {
         if (!batch) return
+        const details = items.map((item) => ({
+            item:
+                item.garment?.description ||
+                item.garment?.type?.name ||
+                item.garment?.code ||
+                'Artículo sin nombre',
+            quantity: item.quantity_sent,
+        }))
 
         const confirmed = await confirmAction({
             title: 'Despachar lote a planta',
@@ -424,6 +432,7 @@ const OperatorBatchDetail = () => {
                 { label: 'Cliente', value: batch.client?.name },
                 { label: 'Estado actual', value: batch.current_status?.name },
             ],
+            details
         })
 
         if (!confirmed) return
@@ -436,6 +445,7 @@ const OperatorBatchDetail = () => {
             showBackendError(error, 'Error despachando lote')
         }
     }
+
 
     useEffect(() => {
         const load = async () => {

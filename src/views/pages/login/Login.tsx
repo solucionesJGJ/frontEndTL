@@ -53,8 +53,8 @@ const Login = () => {
               <CCard className="p-4">
                 <CCardBody>
                   <CForm onSubmit={handleSubmit}>
-                    <h1>Login</h1>
-                    <p className="text-body-secondary">Ingresa a inventario</p>
+                    <h1>Terminal Logistico</h1>
+                    <p className="text-body-secondary">Ingresa tus credenciales</p>
 
                     {error && <p className="text-danger">{error}</p>}
 

@@ -29,6 +29,8 @@ import {
     previewOperatorBatchNumber
 } from '../../../services/operatorBatch.service'
 
+import { getBatchItems } from '../../../services/operatorBatchItem.service'
+
 import { getClients, type Client } from '../../../services/client.service'
 import {
     getCurrentUser,
@@ -61,6 +63,19 @@ const OperatorBatches = () => {
     const canCreateBatch = role === 'admin' || role === 'client_operator'
     const canOperatePlant = role === 'admin' || role === 'warehouse_operator'
     const { confirmAction, showAlert, showBackendError } = useFeedback()
+
+    const getBatchConfirmDetails = async (batchId: string) => {
+        const items = await getBatchItems(batchId)
+
+        return items.map((item) => ({
+            item:
+                item.garment?.description ||
+                item.garment?.type?.name ||
+                item.garment?.code ||
+                'Artículo sin nombre',
+            quantity: item.quantity_sent,
+        }))
+    }
 
     const loadData = async () => {
         const [batchesData, clientsData] = await Promise.all([
@@ -110,42 +125,86 @@ const OperatorBatches = () => {
     }
 
     const getAvailableActions = (statusCode?: string) => {
-        switch (statusCode) {
-            case 'EN_PROCESO':
-                return [
-                    { label: 'Enviar a reproceso', code: 'REPROCESO', color: 'warning' },
-                    { label: 'Preparar despacho', code: 'PREPARADO_DESPACHO', color: 'primary' },
-                ]
+        if (role === 'warehouse_operator') {
+            switch (statusCode) {
+                case 'EN_PROCESO':
+                    return [
+                        { label: 'Enviar a reproceso', code: 'REPROCESO', color: 'warning' },
+                        { label: 'Preparar despacho', code: 'PREPARADO_DESPACHO', color: 'primary' },
+                    ]
 
-            case 'REPROCESO':
-                return [
-                    { label: 'Volver a proceso', code: 'EN_PROCESO', color: 'primary' },
-                    { label: 'Preparar despacho', code: 'PREPARADO_DESPACHO', color: 'primary' },
-                ]
+                case 'REPROCESO':
+                    return [
+                        { label: 'Volver a proceso', code: 'EN_PROCESO', color: 'primary' },
+                        { label: 'Preparar despacho', code: 'PREPARADO_DESPACHO', color: 'primary' },
+                    ]
 
-            case 'DERIVADO_EXTERNO':
-                return [
-                    { label: 'Enviar a traslado', code: 'EN_TRASLADO', color: 'primary' },
-                ]
+                case 'DERIVADO_EXTERNO':
+                    return [
+                        { label: 'Enviar a traslado', code: 'EN_TRASLADO', color: 'primary' },
+                    ]
 
-            case 'PREPARADO_DESPACHO':
-                return [
-                    { label: 'Enviar a traslado', code: 'EN_TRASLADO', color: 'primary' },
-                ]
+                case 'PREPARADO_DESPACHO':
+                    return [
+                        { label: 'Enviar a traslado', code: 'EN_TRASLADO', color: 'primary' },
+                    ]
 
-            case 'EN_TRASLADO':
-                return [
-                    { label: 'Retornar cliente', code: 'RETORNADO_CLIENTE', color: 'success' },
-                ]
+                case 'EN_TRASLADO':
+                    return [
+                        { label: 'Retornar cliente', code: 'RETORNADO_CLIENTE', color: 'success' },
+                    ]
 
-            case 'RETORNADO_CLIENTE':
-                return [
-                    { label: 'Cerrar lote', code: 'CERRADO', color: 'dark' },
-                ]
-
-            default:
-                return []
+                default:
+                    return []
+            }
         }
+
+        if (role === 'client_operator') {
+            if (statusCode === 'RETORNADO_CLIENTE') {
+                return [
+                    { label: 'Cerrar lote', code: 'CERRADO', color: 'success' },
+                ]
+            }
+
+            return []
+        }
+
+        if (role === 'admin') {
+            switch (statusCode) {
+                case 'EN_PROCESO':
+                    return [
+                        { label: 'Enviar a reproceso', code: 'REPROCESO', color: 'warning' },
+                        { label: 'Preparar despacho', code: 'PREPARADO_DESPACHO', color: 'primary' },
+                    ]
+
+                case 'REPROCESO':
+                    return [
+                        { label: 'Volver a proceso', code: 'EN_PROCESO', color: 'primary' },
+                        { label: 'Preparar despacho', code: 'PREPARADO_DESPACHO', color: 'primary' },
+                    ]
+
+                case 'DERIVADO_EXTERNO':
+                case 'PREPARADO_DESPACHO':
+                    return [
+                        { label: 'Enviar a traslado', code: 'EN_TRASLADO', color: 'primary' },
+                    ]
+
+                case 'EN_TRASLADO':
+                    return [
+                        { label: 'Retornar cliente', code: 'RETORNADO_CLIENTE', color: 'success' },
+                    ]
+
+                case 'RETORNADO_CLIENTE':
+                    return [
+                        { label: 'Cerrar lote', code: 'CERRADO', color: 'success' },
+                    ]
+
+                default:
+                    return []
+            }
+        }
+
+        return []
     }
 
     const handleChangeStatus = async (
@@ -153,323 +212,339 @@ const OperatorBatches = () => {
         nextStatusCode: string,
         label: string,
     ) => {
+        const details = await getBatchConfirmDetails(batch.id)
+        const isClosed = nextStatusCode === 'CERRADO'
         const confirmed = await confirmAction({
             title: label,
-            message: '¿Confirmas cambiar el estado del lote?',
-            confirmText: 'Confirmar',
-            color: nextStatusCode === 'CERRADO' ? 'danger' : 'primary',
+            message:
+                isClosed
+                    ? '¿Confirmas el cierre definitivo del lote recibido?'
+                    : '¿Confirmas cambiar el estado del lote?',
+            showConformityCheck: true,
+            observationLabel: isClosed && 'Observaciones del cliente',
+            observationPlaceholder:
+            isClosed && 'Ejemplo: pedido recibido conforme',
+            confirmText:
+            isClosed
+                ? 'Cerrar lote'
+                : 'Confirmar',
+            color: isClosed ? 'danger' : 'primary',
             fields: [
-                { label: 'Lote', value: batch.batch_number },
-                { label: 'Cliente', value: batch.client?.name },
-                { label: 'Estado actual', value: batch.current_status?.name },
-                { label: 'Nuevo estado', value: nextStatusCode },
-            ],
+            { label: 'Lote', value: batch.batch_number },
+            { label: 'Cliente', value: batch.client?.name },
+            { label: 'Estado actual', value: batch.current_status?.name },
+            { label: 'Nuevo estado', value: nextStatusCode },
+        ],
+            details
         })
 
-        if (!confirmed) return
+    if (!confirmed) return
 
-        try {
-            await changeOperatorBatchStatus(batch.id, nextStatusCode)
-            showAlert('Estado actualizado correctamente', 'success')
-            await loadData()
-        } catch (error) {
-            showBackendError(error, 'Error cambiando estado')
-        }
+    try {
+        await changeOperatorBatchStatus(batch.id, nextStatusCode, confirmed.observation,)
+        showAlert('Estado actualizado correctamente', 'success')
+        await loadData()
+    } catch (error) {
+        showBackendError(error, 'Error cambiando estado')
+    }
+}
+
+const handleReceive = async (batch: OperatorBatch) => {
+    const details = await getBatchConfirmDetails(batch.id)
+    const confirmed = await confirmAction({
+        title: 'Recepcionar lote',
+        message: '¿Confirmas la recepción de este lote en planta?',
+        confirmText: 'Recepcionar',
+        color: 'primary',
+        fields: [
+            { label: 'Lote', value: batch.batch_number },
+            { label: 'Cliente', value: batch.client?.name },
+            { label: 'Estado actual', value: batch.current_status?.name },
+        ],
+        details
+    })
+
+    if (!confirmed) return
+
+    try {
+        await receiveOperatorBatch(batch.id)
+        showAlert('Lote recepcionado correctamente', 'success')
+        await loadData()
+    } catch (error) {
+        showBackendError(error, 'Error recepcionando lote')
+    }
+}
+
+const handleEvaluate = async (
+    batch: OperatorBatch,
+    canProcess: boolean,
+) => {
+    const details = await getBatchConfirmDetails(batch.id)
+    const confirmed = await confirmAction({
+        title: canProcess ? 'Enviar a proceso' : 'Derivar externo',
+        message: canProcess
+            ? '¿Confirmas que este lote puede procesarse en planta?'
+            : '¿Confirmas que este lote debe derivarse externamente?',
+        confirmText: canProcess ? 'Procesar' : 'Derivar',
+        color: canProcess ? 'primary' : 'warning',
+        fields: [
+            { label: 'Lote', value: batch.batch_number },
+            { label: 'Cliente', value: batch.client?.name },
+            { label: 'Estado actual', value: batch.current_status?.name },
+            {
+                label: 'Nuevo estado',
+                value: canProcess ? 'En Proceso' : 'Derivado Externo',
+            },
+        ],
+        details
+    })
+
+    if (!confirmed) return
+
+    try {
+        await evaluateOperatorBatch(batch.id, canProcess)
+        showAlert(
+            canProcess
+                ? 'Lote enviado a proceso correctamente'
+                : 'Lote derivado externamente correctamente',
+            'success',
+        )
+        await loadData()
+    } catch (error) {
+        showBackendError(error, 'Error evaluando lote')
+    }
+}
+
+const handleChange = (
+    field: keyof typeof emptyForm,
+    value: string,
+) => {
+    setForm((prev) => ({
+        ...prev,
+        [field]: value,
+    }))
+}
+
+const handleSubmit = async () => {
+    if (!form.batch_number.trim()) {
+        alert('Número de lote es obligatorio')
+        return
     }
 
-    const handleReceive = async (batch: OperatorBatch) => {
-        const confirmed = await confirmAction({
-            title: 'Recepcionar lote',
-            message: '¿Confirmas la recepción de este lote en planta?',
-            confirmText: 'Recepcionar',
-            color: 'primary',
-            fields: [
-                { label: 'Lote', value: batch.batch_number },
-                { label: 'Cliente', value: batch.client?.name },
-                { label: 'Estado actual', value: batch.current_status?.name },
-            ],
+    if (adminUser && !form.client_id) {
+        alert('Cliente es obligatorio')
+        return
+    }
+
+    if (clientOperator && !currentUser?.client?.id) {
+        alert('Tu usuario no tiene cliente asociado')
+        return
+    }
+
+    try {
+        setLoading(true)
+
+        await createOperatorBatch({
+            client_id: clientOperator ? currentUser.client.id : form.client_id,
+            notes: form.notes,
         })
 
-        if (!confirmed) return
-
-        try {
-            await receiveOperatorBatch(batch.id)
-            showAlert('Lote recepcionado correctamente', 'success')
-            await loadData()
-        } catch (error) {
-            showBackendError(error, 'Error recepcionando lote')
-        }
-    }
-
-    const handleEvaluate = async (
-        batch: OperatorBatch,
-        canProcess: boolean,
-    ) => {
-        const confirmed = await confirmAction({
-            title: canProcess ? 'Enviar a proceso' : 'Derivar externo',
-            message: canProcess
-                ? '¿Confirmas que este lote puede procesarse en planta?'
-                : '¿Confirmas que este lote debe derivarse externamente?',
-            confirmText: canProcess ? 'Procesar' : 'Derivar',
-            color: canProcess ? 'primary' : 'warning',
-            fields: [
-                { label: 'Lote', value: batch.batch_number },
-                { label: 'Cliente', value: batch.client?.name },
-                { label: 'Estado actual', value: batch.current_status?.name },
-                {
-                    label: 'Nuevo estado',
-                    value: canProcess ? 'En Proceso' : 'Derivado Externo',
-                },
-            ],
+        setForm({
+            ...emptyForm,
+            client_id: clientOperator ? currentUser.client.id : '',
         })
 
-        if (!confirmed) return
-
-        try {
-            await evaluateOperatorBatch(batch.id, canProcess)
-            showAlert(
-                canProcess
-                    ? 'Lote enviado a proceso correctamente'
-                    : 'Lote derivado externamente correctamente',
-                'success',
-            )
-            await loadData()
-        } catch (error) {
-            showBackendError(error, 'Error evaluando lote')
-        }
+        await loadData()
+    } catch (error: any) {
+        alert(error?.response?.data?.message || 'Error creando lote')
+    } finally {
+        setLoading(false)
     }
-
-    const handleChange = (
-        field: keyof typeof emptyForm,
-        value: string,
-    ) => {
-        setForm((prev) => ({
-            ...prev,
-            [field]: value,
-        }))
+}
+useEffect(() => {
+    const load = async () => {
+        setLoading(true);
+        await loadData();
+        setLoading(false);
     }
-
-    const handleSubmit = async () => {
-        if (!form.batch_number.trim()) {
-            alert('Número de lote es obligatorio')
-            return
-        }
-
-        if (adminUser && !form.client_id) {
-            alert('Cliente es obligatorio')
-            return
-        }
-
-        if (clientOperator && !currentUser?.client?.id) {
-            alert('Tu usuario no tiene cliente asociado')
-            return
-        }
-
-        try {
-            setLoading(true)
-
-            await createOperatorBatch({
-                client_id: clientOperator ? currentUser.client.id : form.client_id,
-                notes: form.notes,
-            })
-
-            setForm({
-                ...emptyForm,
-                client_id: clientOperator ? currentUser.client.id : '',
-            })
-
-            await loadData()
-        } catch (error: any) {
-            alert(error?.response?.data?.message || 'Error creando lote')
-        } finally {
-            setLoading(false)
-        }
+    if (!loading) {
+        load();
     }
-    useEffect(() => {
-        const load = async () => {
-            setLoading(true);
-            await loadData();
-            setLoading(false);
-        }
-        if (!loading) {
-            load();
-        }
-    }, [])
+}, [])
 
-    return (
-        <CCard>
-            <CCardHeader>
-                <strong>Creacion de lotes</strong>
-            </CCardHeader>
+return (
+    <CCard>
+        <CCardHeader>
+            <strong>Creacion de lotes</strong>
+        </CCardHeader>
 
-            <CCardBody>
-                {(adminUser || canCreateBatch) && (
-                    <>
-                        <CRow className="mb-3">
-                            <CCol md={4}>
-                                <CFormSelect
-                                    label="Cliente"
-                                    value={form.client_id}
-                                    disabled={canCreateBatch}
-                                    onChange={async (e) => {
-                                        const clientId = e.target.value
-                                        handleChange('client_id', clientId)
-                                        await loadBatchPreview(clientId)
-                                    }}
-                                >
-                                    <option value="">Seleccione cliente</option>
+        <CCardBody>
+            {(adminUser || canCreateBatch) && (
+                <>
+                    <CRow className="mb-3">
+                        <CCol md={4}>
+                            <CFormSelect
+                                label="Cliente"
+                                value={form.client_id}
+                                disabled={canCreateBatch}
+                                onChange={async (e) => {
+                                    const clientId = e.target.value
+                                    handleChange('client_id', clientId)
+                                    await loadBatchPreview(clientId)
+                                }}
+                            >
+                                <option value="">Seleccione cliente</option>
 
-                                    {clients.map((client) => (
-                                        <option key={client.id} value={client.id}>
-                                            {client.name} {client.rut ? `(${client.rut})` : ''}
-                                        </option>
-                                    ))}
-                                </CFormSelect>
-                            </CCol>
+                                {clients.map((client) => (
+                                    <option key={client.id} value={client.id}>
+                                        {client.name} {client.rut ? `(${client.rut})` : ''}
+                                    </option>
+                                ))}
+                            </CFormSelect>
+                        </CCol>
 
-                            <CCol md={3}>
-                                <CFormInput
-                                    label="Número de lote"
-                                    value={form.batch_number}
-                                    disabled
-                                />
-                            </CCol>
+                        <CCol md={3}>
+                            <CFormInput
+                                label="Número de lote"
+                                value={form.batch_number}
+                                disabled
+                            />
+                        </CCol>
 
-                            <CCol md={3}>
-                                <CFormInput
-                                    label="Origen"
-                                    value={form.origin_location}
-                                    onChange={(e) =>
-                                        handleChange('origin_location', e.target.value)
-                                    }
-                                    disabled
-                                />
-                            </CCol>
+                        <CCol md={3}>
+                            <CFormInput
+                                label="Origen"
+                                value={form.origin_location}
+                                onChange={(e) =>
+                                    handleChange('origin_location', e.target.value)
+                                }
+                                disabled
+                            />
+                        </CCol>
 
-                            <CCol md={2}>
-                                <CFormInput
-                                    label="Destino"
-                                    value={form.destination_location}
-                                    onChange={(e) =>
-                                        handleChange('destination_location', e.target.value)
-                                    }
-                                    disabled
-                                />
-                            </CCol>
-                        </CRow>
+                        <CCol md={2}>
+                            <CFormInput
+                                label="Destino"
+                                value={form.destination_location}
+                                onChange={(e) =>
+                                    handleChange('destination_location', e.target.value)
+                                }
+                                disabled
+                            />
+                        </CCol>
+                    </CRow>
 
-                        <CRow className="mb-4">
-                            <CCol md={8}>
-                                <CFormTextarea
-                                    label="Notas"
-                                    rows={1}
-                                    value={form.notes}
-                                    onChange={(e) => handleChange('notes', e.target.value)}
-                                />
-                            </CCol>
+                    <CRow className="mb-4">
+                        <CCol md={8}>
+                            <CFormTextarea
+                                label="Notas"
+                                rows={1}
+                                value={form.notes}
+                                onChange={(e) => handleChange('notes', e.target.value)}
+                            />
+                        </CCol>
 
-                            <CCol md={4} className="d-flex align-items-end">
-                                <CButton
-                                    color="primary"
-                                    onClick={handleSubmit}
-                                    disabled={loading}
-                                >
-                                    {loading ? 'Guardando...' : 'Crear lote'}
-                                </CButton>
-                            </CCol>
-                        </CRow></>
-                )}
-                <CTable hover responsive>
-                    <CTableHead>
-                        <CTableRow>
-                            <CTableHeaderCell>N° Lote</CTableHeaderCell>
-                            <CTableHeaderCell>Cliente</CTableHeaderCell>
-                            <CTableHeaderCell>Origen</CTableHeaderCell>
-                            <CTableHeaderCell>Destino</CTableHeaderCell>
-                            <CTableHeaderCell>Estado</CTableHeaderCell>
-                            <CTableHeaderCell>Creado por</CTableHeaderCell>
-                            <CTableHeaderCell>Recepción</CTableHeaderCell>
-                            <CTableHeaderCell>Acciones</CTableHeaderCell>
-                        </CTableRow>
-                    </CTableHead>
+                        <CCol md={4} className="d-flex align-items-end">
+                            <CButton
+                                color="primary"
+                                onClick={handleSubmit}
+                                disabled={loading}
+                            >
+                                {loading ? 'Guardando...' : 'Crear lote'}
+                            </CButton>
+                        </CCol>
+                    </CRow></>
+            )}
+            <CTable hover responsive>
+                <CTableHead>
+                    <CTableRow>
+                        <CTableHeaderCell>N° Lote</CTableHeaderCell>
+                        <CTableHeaderCell>Cliente</CTableHeaderCell>
+                        <CTableHeaderCell>Origen</CTableHeaderCell>
+                        <CTableHeaderCell>Destino</CTableHeaderCell>
+                        <CTableHeaderCell>Estado</CTableHeaderCell>
+                        <CTableHeaderCell>Creado por</CTableHeaderCell>
+                        <CTableHeaderCell>Recepción</CTableHeaderCell>
+                        <CTableHeaderCell>Acciones</CTableHeaderCell>
+                    </CTableRow>
+                </CTableHead>
 
-                    <CTableBody>
-                        {batches.map((batch) => (
-                            <CTableRow key={batch.id}>
-                                <CTableDataCell>{batch.batch_number}</CTableDataCell>
-                                <CTableDataCell>{batch.client?.name || '-'}</CTableDataCell>
-                                <CTableDataCell>{batch.origin_location || '-'}</CTableDataCell>
-                                <CTableDataCell>{batch.destination_location || '-'}</CTableDataCell>
-                                <CTableDataCell>
-                                    {batch.current_status?.name || '-'}
-                                </CTableDataCell>
-                                <CTableDataCell>
-                                    {batch.creator?.name || '-'}
-                                </CTableDataCell>
-                                <CTableDataCell>
-                                    {batch.received_at
-                                        ? new Date(batch.received_at).toLocaleString()
-                                        : '-'}
-                                </CTableDataCell>
-                                <CTableDataCell>
-                                    <div className="d-flex gap-2">
+                <CTableBody>
+                    {batches.map((batch) => (
+                        <CTableRow key={batch.id}>
+                            <CTableDataCell>{batch.batch_number}</CTableDataCell>
+                            <CTableDataCell>{batch.client?.name || '-'}</CTableDataCell>
+                            <CTableDataCell>{batch.origin_location || '-'}</CTableDataCell>
+                            <CTableDataCell>{batch.destination_location || '-'}</CTableDataCell>
+                            <CTableDataCell>
+                                {batch.current_status?.name || '-'}
+                            </CTableDataCell>
+                            <CTableDataCell>
+                                {batch.creator?.name || '-'}
+                            </CTableDataCell>
+                            <CTableDataCell>
+                                {batch.received_at
+                                    ? new Date(batch.received_at).toLocaleString()
+                                    : '-'}
+                            </CTableDataCell>
+                            <CTableDataCell>
+                                <div className="d-flex gap-2">
+                                    <CButton
+                                        color="primary"
+                                        size="sm"
+                                        onClick={() => navigate(`/operator/batches/${batch.id}`)}
+                                    >
+                                        Ver detalle
+                                    </CButton>
+                                    {canOperatePlant && batch.current_status?.code === 'PENDIENTE_RECEPCION' && (
                                         <CButton
-                                            color="primary"
+                                            color="success"
                                             size="sm"
-                                            onClick={() => navigate(`/operator/batches/${batch.id}`)}
+                                            onClick={() => handleReceive(batch)}
                                         >
-                                            Ver detalle
+                                            Recepcionar
                                         </CButton>
-                                        {canOperatePlant && batch.current_status?.code === 'PENDIENTE_RECEPCION' && (
+                                    )}
+                                    {canOperatePlant && batch.current_status?.code === 'RECEPCIONADO' && (
+                                        <>
                                             <CButton
-                                                color="success"
+                                                color="primary"
                                                 size="sm"
-                                                onClick={() => handleReceive(batch)}
+                                                onClick={() => handleEvaluate(batch, true)}
                                             >
-                                                Recepcionar
+                                                Procesar
                                             </CButton>
-                                        )}
-                                        {canOperatePlant && batch.current_status?.code === 'RECEPCIONADO' && (
-                                            <>
-                                                <CButton
-                                                    color="primary"
-                                                    size="sm"
-                                                    onClick={() => handleEvaluate(batch, true)}
-                                                >
-                                                    Procesar
-                                                </CButton>
 
-                                                <CButton
-                                                    color="warning"
-                                                    size="sm"
-                                                    onClick={() => handleEvaluate(batch, false)}
-                                                >
-                                                    Derivar
-                                                </CButton>
-                                            </>
-                                        )}
-                                        {canOperatePlant &&
-                                            getAvailableActions(batch.current_status?.code).map((action) => (
-                                                <CButton
-                                                    key={action.code}
-                                                    color={action.color as any}
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        handleChangeStatus(batch, action.code, action.label)
-                                                    }
-                                                >
-                                                    {action.label}
-                                                </CButton>
-                                            ))}
-                                    </div>
-                                </CTableDataCell>
-                            </CTableRow>
-                        ))}
-                    </CTableBody>
-                </CTable>
-            </CCardBody>
-        </CCard>
-    )
+                                            <CButton
+                                                color="warning"
+                                                size="sm"
+                                                onClick={() => handleEvaluate(batch, false)}
+                                            >
+                                                Derivar
+                                            </CButton>
+                                        </>
+                                    )}
+                                    {getAvailableActions(batch.current_status?.code).map((action) => (
+                                        <CButton
+                                            key={action.code}
+                                            color={action.color as any}
+                                            size="sm"
+                                            onClick={() =>
+                                                handleChangeStatus(batch, action.code, action.label)
+                                            }
+                                        >
+                                            {action.label}
+                                        </CButton>
+                                    ))}
+                                </div>
+                            </CTableDataCell>
+                        </CTableRow>
+                    ))}
+                </CTableBody>
+            </CTable>
+        </CCardBody>
+    </CCard>
+)
 }
 
 export default OperatorBatches
