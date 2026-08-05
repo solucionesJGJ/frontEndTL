@@ -61,6 +61,7 @@ const Users = () => {
         setUsers(usersData)
         setRoles(rolesData)
         setClients(clientsData.filter((client) => client.active))
+
     }
 
     const handleChange = (
@@ -141,6 +142,8 @@ const Users = () => {
         const load = async () => {
             setIsLoading(true)
             await loadData()
+            setForm(emptyForm)
+            setEditingId(null)
             setIsLoading(false)
         }
         if (!isLoading) {
@@ -171,6 +174,8 @@ const Users = () => {
                             type="email"
                             value={form.email}
                             onChange={(e) => handleChange('email', e.target.value)}
+                            autoComplete="new-email"
+
                         />
                     </CCol>
 
@@ -180,6 +185,7 @@ const Users = () => {
                             type="password"
                             value={form.password}
                             onChange={(e) => handleChange('password', e.target.value)}
+                            autoComplete="new-password"
                         />
                     </CCol>
 

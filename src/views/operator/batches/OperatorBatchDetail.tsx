@@ -154,6 +154,59 @@ const OperatorBatchDetail = () => {
         return []
     }
 
+    const getMovementSuggestionByBatchStatus = (statusCode?: string) => {
+        switch (statusCode) {
+            case 'PENDIENTE_RECEPCION':
+                return {
+                    fromStatusCode: 'PENDIENTE_RECEPCION',
+                    toStatusCode: 'RECEPCIONADO',
+                    movementType: 'recepcion',
+                }
+
+            case 'RECEPCIONADO':
+                return {
+                    fromStatusCode: 'RECEPCIONADO',
+                    toStatusCode: 'EN_PROCESO',
+                    movementType: 'proceso',
+                }
+
+            case 'EN_PROCESO':
+                return {
+                    fromStatusCode: 'EN_PROCESO',
+                    toStatusCode: 'PREPARADO_DESPACHO',
+                    movementType: 'proceso',
+                }
+
+            case 'REPROCESO':
+                return {
+                    fromStatusCode: 'REPROCESO',
+                    toStatusCode: 'EN_PROCESO',
+                    movementType: 'reproceso',
+                }
+
+            case 'PREPARADO_DESPACHO':
+            case 'DERIVADO_EXTERNO':
+                return {
+                    fromStatusCode: statusCode,
+                    toStatusCode: 'EN_TRASLADO',
+                    movementType: 'retorno',
+                }
+
+            case 'EN_TRASLADO':
+                return {
+                    fromStatusCode: 'EN_TRASLADO',
+                    toStatusCode: 'RETORNADO_CLIENTE',
+                    movementType: 'retorno',
+                }
+
+            default:
+                return {
+                    fromStatusCode: '',
+                    toStatusCode: '',
+                    movementType: 'ajuste',
+                }
+        }
+    }
     const availableGarments = useMemo(() => {
         if (!batch) return []
 
@@ -317,15 +370,10 @@ const OperatorBatchDetail = () => {
 
         if (!batch || !garmentId || !item) {
             setSelectedStock([])
-            setMovementForm((prev) => ({
-                ...prev,
+            setMovementForm({
+                ...emptyMovementForm,
                 garment_id: garmentId,
-                from_status_id: '',
-                to_status_id: '',
-                quantity: 1,
-                movement_type: 'recepcion',
-                notes: '',
-            }))
+            })
             return
         }
 
@@ -334,66 +382,43 @@ const OperatorBatchDetail = () => {
             garment_id: garmentId,
         })
 
-        /* const stockWithQuantity = stockData.filter(
-            (stock) => Number(stock.quantity) > 0,
-        ) */
-
-        //const firstStock = stockWithQuantity[0]
-
-        const batchStatusCode = batch.current_status?.code
-
-        let suggestedToStatusCode = ''
-        let suggestedMovementType = 'proceso'
-
-        if (batchStatusCode === 'PENDIENTE_RECEPCION') {
-            suggestedToStatusCode = 'RECEPCIONADO'
-            suggestedMovementType = 'recepcion'
-        }
-
-        if (batchStatusCode === 'RECEPCIONADO') {
-            suggestedToStatusCode = 'EN_PROCESO'
-            suggestedMovementType = 'proceso'
-        }
-
-        if (batchStatusCode === 'EN_PROCESO') {
-            suggestedToStatusCode = 'PREPARADO_DESPACHO'
-            suggestedMovementType = 'proceso'
-        }
-
-        if (batchStatusCode === 'REPROCESO') {
-            suggestedToStatusCode = 'EN_PROCESO'
-            suggestedMovementType = 'reproceso'
-        }
-
-        if (
-            batchStatusCode === 'PREPARADO_DESPACHO' ||
-            batchStatusCode === 'DERIVADO_EXTERNO'
-        ) {
-            suggestedToStatusCode = 'EN_TRASLADO'
-            suggestedMovementType = 'retorno'
-        }
-
-        if (batchStatusCode === 'EN_TRASLADO') {
-            suggestedToStatusCode = 'RETORNADO_CLIENTE'
-            suggestedMovementType = 'retorno'
-        }
-
-        const suggestedToStatus = statuses.find(
-            (status) => status.code === suggestedToStatusCode,
-        )
-        console.log('suggested to status', suggestedToStatus)
-        console.log('current status', batch.current_status)
         setSelectedStock(stockData)
 
-        setMovementForm((prev) => ({
-            ...prev,
+        const suggestion = getMovementSuggestionByBatchStatus(
+            batch.current_status?.code,
+        )
+
+        const suggestedFromStatus = suggestion.fromStatusCode
+            ? statuses.find((status) => status.code === suggestion.fromStatusCode)
+            : null
+
+        const suggestedToStatus = suggestion.toStatusCode
+            ? statuses.find((status) => status.code === suggestion.toStatusCode)
+            : null
+
+        const stockForSuggestedOrigin = suggestedFromStatus
+            ? stockData.find(
+                (stock) =>
+                    stock.status_id === suggestedFromStatus.id &&
+                    Number(stock.quantity) > 0,
+            )
+            : null
+
+        setMovementForm({
             garment_id: garmentId,
-            from_status_id: batch.current_status?.id || '',
+            from_status_id: stockForSuggestedOrigin?.status_id || suggestedFromStatus?.id || '',
             to_status_id: suggestedToStatus?.id || '',
-            quantity: item.quantity_received || item.quantity_sent || 1,
-            movement_type: suggestedMovementType,
-            notes: `Movimiento de ${item.garment?.code || 'prenda'}`,
-        }))
+            quantity:
+                Number(stockForSuggestedOrigin?.quantity || 0) > 0
+                    ? Number(stockForSuggestedOrigin?.quantity)
+                    : Number(item.quantity_received || item.quantity_sent || 1),
+            movement_type: suggestion.movementType,
+            notes: `Movimiento de ${item.garment?.size ||
+                item.garment?.description ||
+                item.garment?.code ||
+                'prenda'
+                }`,
+        })
     }
 
     const applyMovementAction = (toStatusCode: string, movementType: string) => {
@@ -415,7 +440,7 @@ const OperatorBatchDetail = () => {
         if (!batch) return
         const details = items.map((item) => ({
             item:
-                item.garment?.description ||
+                item.garment?.size ||
                 item.garment?.type?.name ||
                 item.garment?.code ||
                 'Artículo sin nombre',
@@ -513,88 +538,90 @@ const OperatorBatchDetail = () => {
                     </CCardHeader>
 
                     <CCardBody>
-                        <CRow className="mb-3">
-                            <CCol md={4}>
-                                <CFormSelect
-                                    label="Prenda"
-                                    value={itemForm.garment_id}
-                                    onChange={(e) => handleItemChange('garment_id', e.target.value)}
-                                >
-                                    <option value="">Seleccione prenda</option>
+                        {batch?.current_status?.code === 'BORRADOR_CLIENTE' && <>
+                            <CRow className="mb-3">
+                                <CCol md={4}>
+                                    <CFormSelect
+                                        label="Prenda"
+                                        value={itemForm.garment_id}
+                                        onChange={(e) => handleItemChange('garment_id', e.target.value)}
+                                    >
+                                        <option value="">Seleccione prenda</option>
 
-                                    {garments.map((garment) => (
-                                        <option key={garment.id} value={garment.id}>
-                                            {garment.size} - {garment.description || garment.type?.name}
-                                        </option>
-                                    ))}
-                                </CFormSelect>
-                            </CCol>
+                                        {garments.map((garment) => (
+                                            <option key={garment.id} value={garment.id}>
+                                                {garment.size} - {garment.description || garment.type?.name}
+                                            </option>
+                                        ))}
+                                    </CFormSelect>
+                                </CCol>
 
-                            <CCol md={2}>
-                                <CFormInput
-                                    label="Cant. enviada"
-                                    type="number"
-                                    min={1}
-                                    value={itemForm.quantity_sent}
-                                    onChange={(e) =>
-                                        handleItemChange('quantity_sent', Number(e.target.value))
-                                    }
-                                />
-                            </CCol>
-
-                            {!isClient && (
                                 <CCol md={2}>
                                     <CFormInput
-                                        label="Cant. recibida"
+                                        label="Cant. enviada"
                                         type="number"
-                                        min={0}
-                                        value={itemForm.quantity_received}
+                                        min={1}
+                                        value={itemForm.quantity_sent}
                                         onChange={(e) =>
-                                            handleItemChange('quantity_received', Number(e.target.value))
+                                            handleItemChange('quantity_sent', Number(e.target.value))
                                         }
                                     />
                                 </CCol>
-                            )}
-                            <CCol md={3}>
-                                <CFormSelect
-                                    label="Proceso"
-                                    value={itemForm.garment_process_id}
-                                    onChange={(e) =>
-                                        handleItemChange('garment_process_id', e.target.value)
-                                    }
-                                >
-                                    <option value="">Seleccione proceso</option>
-                                    {processes.map((process) => (
-                                        <option key={process.id} value={process.id}>
-                                            {process.name}
-                                        </option>
-                                    ))}
-                                </CFormSelect>
-                            </CCol>
 
-                            <CCol md={4}>
-                                <CFormTextarea
-                                    label="Notas"
-                                    rows={1}
-                                    value={itemForm.notes}
-                                    onChange={(e) => handleItemChange('notes', e.target.value)}
-                                />
-                            </CCol>
-                        </CRow>
-
-                        <CRow className="mb-4">
-                            <CCol md={12} className="d-flex gap-2">
-                                <CButton color="primary" onClick={handleSubmitItem}>
-                                    {editingItemId ? 'Actualizar prenda' : 'Agregar prenda'}
-                                </CButton>
-
-                                {editingItemId && (
-                                    <CButton color="secondary" onClick={handleCancelItem}>
-                                        Cancelar
-                                    </CButton>
+                                {!isClient && (
+                                    <CCol md={2}>
+                                        <CFormInput
+                                            label="Cant. recibida"
+                                            type="number"
+                                            min={0}
+                                            value={itemForm.quantity_received}
+                                            onChange={(e) =>
+                                                handleItemChange('quantity_received', Number(e.target.value))
+                                            }
+                                        />
+                                    </CCol>
                                 )}
-                            </CCol>
-                        </CRow>
+                                <CCol md={3}>
+                                    <CFormSelect
+                                        label="Proceso"
+                                        value={itemForm.garment_process_id}
+                                        onChange={(e) =>
+                                            handleItemChange('garment_process_id', e.target.value)
+                                        }
+                                    >
+                                        <option value="">Seleccione proceso</option>
+                                        {processes.map((process) => (
+                                            <option key={process.id} value={process.id}>
+                                                {process.name}
+                                            </option>
+                                        ))}
+                                    </CFormSelect>
+                                </CCol>
+
+                                <CCol md={4}>
+                                    <CFormTextarea
+                                        label="Notas"
+                                        rows={1}
+                                        value={itemForm.notes}
+                                        onChange={(e) => handleItemChange('notes', e.target.value)}
+                                    />
+                                </CCol>
+                            </CRow>
+
+                            <CRow className="mb-4">
+                                <CCol md={12} className="d-flex gap-2">
+                                    <CButton color="primary" onClick={handleSubmitItem}>
+                                        {editingItemId ? 'Actualizar prenda' : 'Agregar prenda'}
+                                    </CButton>
+
+                                    {editingItemId && (
+                                        <CButton color="secondary" onClick={handleCancelItem}>
+                                            Cancelar
+                                        </CButton>
+                                    )}
+                                </CCol>
+                            </CRow>
+                        </>}
                         <div className="mb-3">
                             <strong>Total valorizado del lote:</strong>{' '}
                             ${batchTotal.toLocaleString('es-CL')}
@@ -604,7 +631,7 @@ const OperatorBatchDetail = () => {
                                 <CTableRow>
                                     <CTableHeaderCell>Código</CTableHeaderCell>
                                     <CTableHeaderCell>Tipo</CTableHeaderCell>
-                                    <CTableHeaderCell>Descripción</CTableHeaderCell>
+                                    <CTableHeaderCell>Nombre</CTableHeaderCell>
                                     <CTableHeaderCell>Enviada</CTableHeaderCell>
                                     <CTableHeaderCell>Recibida</CTableHeaderCell>
                                     <CTableHeaderCell>Procesada</CTableHeaderCell>
@@ -625,7 +652,7 @@ const OperatorBatchDetail = () => {
                                     <CTableRow key={item.id}>
                                         <CTableDataCell>{item.garment?.code || '-'}</CTableDataCell>
                                         <CTableDataCell>{item.garment?.type?.name || '-'}</CTableDataCell>
-                                        <CTableDataCell>{item.garment?.description || '-'}</CTableDataCell>
+                                        <CTableDataCell>{item.garment?.size || '-'}</CTableDataCell>
                                         <CTableDataCell>{item.quantity_sent}</CTableDataCell>
                                         <CTableDataCell>{item.quantity_received}</CTableDataCell>
                                         <CTableDataCell>{item.quantity_processed}</CTableDataCell>
@@ -714,11 +741,26 @@ const OperatorBatchDetail = () => {
                                         >
                                             <option value="">Sin origen / ingreso inicial</option>
 
-                                            {availableOriginStatuses.map((stock) => (
-                                                <option key={stock.status_id} value={stock.status_id}>
-                                                    {stock.status?.name} - Disponible: {stock.quantity}
-                                                </option>
-                                            ))}
+                                            {statuses
+                                                .filter((status) => {
+                                                    if (status.id === movementForm.from_status_id) return true
+
+                                                    return availableOriginStatuses.some(
+                                                        (stock) => stock.status_id === status.id,
+                                                    )
+                                                })
+                                                .map((status) => {
+                                                    const stock = availableOriginStatuses.find(
+                                                        (item) => item.status_id === status.id,
+                                                    )
+
+                                                    return (
+                                                        <option key={status.id} value={status.id}>
+                                                            {status.name}
+                                                            {stock ? ` - Disponible: ${stock.quantity}` : ' - Estado sugerido'}
+                                                        </option>
+                                                    )
+                                                })}
                                         </CFormSelect>
                                     </CCol>
 

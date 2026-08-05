@@ -252,7 +252,7 @@ const Garments = () => {
                             <CTableHeaderCell>Tipo</CTableHeaderCell>
                             <CTableHeaderCell>Código</CTableHeaderCell>
                             <CTableHeaderCell>Descripción</CTableHeaderCell>
-                            <CTableHeaderCell>Talla</CTableHeaderCell>
+                            <CTableHeaderCell>Nombre</CTableHeaderCell>
                             <CTableHeaderCell>Color</CTableHeaderCell>
                             <CTableHeaderCell>Barcode</CTableHeaderCell>
                             <CTableHeaderCell>Activo</CTableHeaderCell>
