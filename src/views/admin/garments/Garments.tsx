@@ -456,7 +456,7 @@ const Garments = () => {
                 })
 
 
-            if (!confirmed) {
+            if (!confirmed.confirmed) {
                 return
             }
 
@@ -695,7 +695,7 @@ const Garments = () => {
                 })
 
 
-            if (!confirmed) {
+            if (!confirmed.confirmed) {
                 return
             }
 

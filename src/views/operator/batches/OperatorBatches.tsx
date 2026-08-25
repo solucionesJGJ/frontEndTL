@@ -705,7 +705,7 @@ const OperatorBatches = () => {
 
 
                 if (
-                    !confirmed
+                    !confirmed.confirmed
                 ) {
                     return
                 }
@@ -806,7 +806,7 @@ const OperatorBatches = () => {
 
 
                 if (
-                    !confirmed
+                    !confirmed.confirmed
                 ) {
                     return
                 }
@@ -923,7 +923,7 @@ const OperatorBatches = () => {
 
 
                 if (
-                    !confirmed
+                    !confirmed.confirmed
                 ) {
                     return
                 }
@@ -1131,7 +1131,7 @@ const OperatorBatches = () => {
 
 
             if (
-                !confirmed
+                !confirmed.confirmed
             ) {
                 return
             }
@@ -1705,7 +1705,7 @@ const OperatorBatches = () => {
                                                             </CButton>
 
 
-                                                            <CButton
+                                                            {/* <CButton
                                                                 color="warning"
                                                                 size="sm"
                                                                 onClick={
@@ -1719,7 +1719,7 @@ const OperatorBatches = () => {
 
                                                                 Derivar
 
-                                                            </CButton>
+                                                            </CButton> */}
 
                                                         </>
 

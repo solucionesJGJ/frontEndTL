@@ -837,7 +837,7 @@ const OperatorBatchDetail = () => {
             }
 
 
-            const confirmed =
+           /*  const confirmed =
                 await confirmAction({
                     title:
                         editingItemId
@@ -935,10 +935,10 @@ const OperatorBatchDetail = () => {
 
 
             if (
-                !confirmed
+                !confirmed.confirmed
             ) {
                 return
-            }
+            } */
 
 
             try {
@@ -1138,7 +1138,7 @@ const OperatorBatchDetail = () => {
 
 
             if (
-                !confirmed
+                !confirmed.confirmed
             ) {
                 return
             }
@@ -1575,7 +1575,7 @@ const OperatorBatchDetail = () => {
 
 
             if (
-                !confirmed
+                !confirmed.confirmed
             ) {
                 return
             }

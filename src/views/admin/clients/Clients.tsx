@@ -380,7 +380,7 @@ const Clients = () => {
             })
 
 
-        if (!confirmed) {
+        if (!confirmed.confirmed) {
             return
         }
 
@@ -563,7 +563,7 @@ const Clients = () => {
             })
 
 
-        if (!confirmed) {
+        if (!confirmed.confirmed) {
             return
         }
 

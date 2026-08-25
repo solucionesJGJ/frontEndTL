@@ -327,7 +327,7 @@ const Vehicles = () => {
                 })
 
 
-            if (!confirmed) {
+            if (!confirmed.confirmed) {
                 return
             }
 
@@ -523,7 +523,7 @@ const Vehicles = () => {
                 })
 
 
-            if (!confirmed) {
+            if (!confirmed.confirmed) {
                 return
             }
 

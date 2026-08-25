@@ -580,7 +580,7 @@ const DriverShiftView = () => {
                 })
 
 
-            if (!confirmed) {
+            if (!confirmed.confirmed) {
                 return
             }
 
@@ -818,7 +818,7 @@ const DriverShiftView = () => {
                 })
 
 
-            if (!confirmed) {
+            if (!confirmed.confirmed) {
                 return
             }
 

@@ -50,7 +50,7 @@ type FeedbackContextType = {
     confirmAction: (options: ConfirmOptions) => Promise<{
         confirmed: boolean
         observation?: string
-        isConform?:boolean
+        isConform?: boolean
     }>
 }
 
@@ -241,11 +241,14 @@ export function FeedbackProvider({ children }: { children: React.ReactNode }) {
                                 }
                                 onChange={(e) => setObservation(e.target.value)}
                             />
-                            {!isConform && !observation.trim() && (
-                                <small className="text-danger">
-                                    Debe indicar una observación si el pedido no fue recibido conforme.
-                                </small>
-                            )}
+                            {(
+                                (!isConform || confirmOptions.observationRequired) &&
+                                !observation.trim()
+                            ) && (
+                                    <small className="text-danger">
+                                        Debe ingresar una observación para continuar.
+                                    </small>
+                                )}
                         </div>
                     )}
                 </CModalBody>
@@ -256,7 +259,10 @@ export function FeedbackProvider({ children }: { children: React.ReactNode }) {
                     </CButton>
 
                     <CButton color={confirmOptions.color} onClick={handleConfirm} disabled={
-                        !isConform &&
+                        (
+                            !isConform ||
+                            confirmOptions.observationRequired
+                        ) &&
                         !observation.trim()
                     }>
                         {confirmOptions.confirmText}
