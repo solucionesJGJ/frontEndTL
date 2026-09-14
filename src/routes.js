@@ -37,6 +37,14 @@ import Vehicles
 import DriverShiftHistory
   from './views/admin/transport/DriverShiftHistory'
 
+import ClientReports
+  from './views/operator/reports/ClientReports'
+
+import BillingCreate
+  from './views/admin/billing/BillingCreate'
+
+import DispatchGuides from './views/operator/dispatch-guide/DispatchGuides'
+
 const role =
   getCurrentRole()
 
@@ -100,6 +108,16 @@ export const routes = [
     name: 'Historial transporte',
     element: DriverShiftHistory,
   },
+  {
+    path: '/admin/billing',
+    name: 'Facturación',
+    element: BillingCreate,
+  },
+  {
+    path: '/operator/dispatch-guides',
+    name: 'Guías de despacho',
+    element: DispatchGuides,
+  },
 
   /**
    * LOTES
@@ -116,6 +134,11 @@ export const routes = [
     element: OperatorBatchDetail,
   },
 
+  {
+    path: '/operator/reports',
+    name: 'Reportería',
+    element: ClientReports,
+  },
 
   /**
    * STOCK

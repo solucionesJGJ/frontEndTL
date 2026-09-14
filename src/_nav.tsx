@@ -9,6 +9,8 @@ import {
   cilStorage,
   cilUser,
   cilTruck,
+  cilMoney,
+  cilDescription
 } from '@coreui/icons'
 
 import {
@@ -97,6 +99,23 @@ export const getNavByRole = (
             customClassName="nav-icon"
           />,
       },
+      {
+        component: CNavItem,
+        name: 'Facturación',
+        to: '/admin/billing',
+        icon: (
+          <CIcon
+            icon={cilMoney}
+            customClassName="nav-icon"
+          />
+        ),
+      },
+      {
+        component: CNavItem,
+        name: 'Guías de despacho',
+        to: '/operator/dispatch-guides',
+        icon: <CIcon icon={cilDescription} customClassName="nav-icon" />,
+      },
     )
   }
 
@@ -147,6 +166,22 @@ export const getNavByRole = (
 
         to:
           '/operator/batches',
+
+        icon:
+          <CIcon
+            icon={cilList}
+            customClassName="nav-icon"
+          />,
+      },
+      {
+        component:
+          CNavItem,
+
+        name:
+          'Reportería',
+
+        to:
+          '/operator/reports',
 
         icon:
           <CIcon
