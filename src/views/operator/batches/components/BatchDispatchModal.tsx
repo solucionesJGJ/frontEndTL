@@ -95,7 +95,7 @@ const BatchDispatchModal = ({
         </div>
 
         <div className="mb-3">
-          <strong>¿Generar guía de despacho DTE52?</strong>
+          <strong>¿GENERAR GUIA DE DESPACHO?</strong>
         </div>
 
         <CFormCheck

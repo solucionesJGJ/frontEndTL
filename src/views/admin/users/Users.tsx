@@ -23,17 +23,27 @@ import {
   getUsers,
   updateUser,
   type User,
+  type UserPayload,
 } from '../../../services/user.service'
 import { getRoles, type Role } from '../../../services/role.service'
 import { getClients, type Client } from '../../../services/client.service'
+import { useFeedback } from '../../../context/FeedbackContext'
 
 const emptyForm = {
   name: '',
+  rut: '',
   email: '',
   password: '',
   role_id: '',
   client_id: '',
   active: true,
+}
+
+function normalizeRut(value: string): string {
+  return value
+    .toUpperCase()
+    .replace(/[^0-9K.-]/g, '')
+    .slice(0, 12)
 }
 
 const Users = () => {
@@ -44,6 +54,8 @@ const Users = () => {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
+  const { confirmAction, showAlert, showBackendError } = useFeedback()
+
   const selectedRole = useMemo(() => {
     return roles.find((role) => role.id === form.role_id)
   }, [roles, form.role_id])
@@ -51,18 +63,35 @@ const Users = () => {
   const isClientRole = selectedRole?.name === 'client_operator'
 
   const loadData = async () => {
-    const [usersData, rolesData, clientsData] = await Promise.all([
-      getUsers(),
-      getRoles(),
-      getClients(),
-    ])
+    try {
+      setIsLoading(true)
 
-    setUsers(usersData)
-    setRoles(rolesData)
-    setClients(clientsData.filter((client) => client.active))
+      const [usersData, rolesData, clientsData] = await Promise.all([
+        getUsers(),
+        getRoles(),
+        getClients(),
+      ])
+
+      setUsers(usersData)
+      setRoles(rolesData)
+      setClients(clientsData.filter((client) => client.active))
+    } catch (error) {
+      showBackendError(error, 'Error cargando usuarios')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleChange = (field: keyof typeof emptyForm, value: string | boolean) => {
+    if (field === 'rut' && typeof value === 'string') {
+      setForm((prev) => ({
+        ...prev,
+        rut: normalizeRut(value),
+      }))
+
+      return
+    }
+
     setForm((prev) => ({
       ...prev,
       [field]: value,
@@ -71,79 +100,207 @@ const Users = () => {
   }
 
   const handleSubmit = async () => {
-    if (!form.name.trim() || !form.email.trim() || !form.role_id) {
-      alert('Nombre, email y rol son obligatorios')
+    if (!form.name.trim()) {
+      showAlert('El nombre es obligatorio', 'warning')
+
+      return
+    }
+
+    if (!form.rut.trim()) {
+      showAlert('El RUT es obligatorio', 'warning')
+
+      return
+    }
+
+    if (!form.email.trim()) {
+      showAlert('El email es obligatorio', 'warning')
+
+      return
+    }
+
+    if (!form.role_id) {
+      showAlert('El rol es obligatorio', 'warning')
+
       return
     }
 
     if (!editingId && !form.password.trim()) {
-      alert('La contraseña es obligatoria para crear usuario')
+      showAlert('La contraseña es obligatoria para crear usuario', 'warning')
+
       return
     }
 
     if (isClientRole && !form.client_id) {
-      alert('Los usuarios cliente deben tener cliente asociado')
+      showAlert('Los usuarios cliente deben tener un cliente asociado', 'warning')
+
       return
     }
 
-    const payload = {
-      name: form.name,
-      email: form.email,
-      password: form.password || undefined,
+    const duplicateRut = users.find(
+      (user) =>
+        user.rut?.replace(/[.-]/g, '').toUpperCase() ===
+        form.rut.replace(/[.-]/g, '').toUpperCase() && user.id !== editingId,
+    )
+
+    if (duplicateRut) {
+      showAlert(`El RUT ${form.rut} ya pertenece a ${duplicateRut.name}`, 'warning')
+
+      return
+    }
+
+    const duplicateEmail = users.find(
+      (user) =>
+        user.email.trim().toLowerCase() === form.email.trim().toLowerCase() &&
+        user.id !== editingId,
+    )
+
+    if (duplicateEmail) {
+      showAlert(`El email ${form.email} ya pertenece a otro usuario`, 'warning')
+
+      return
+    }
+
+    const confirmed = await confirmAction({
+      title: editingId ? 'Actualizar usuario' : 'Crear usuario',
+      message: 'Se guardarán los siguientes datos:',
+      confirmText: editingId ? 'Actualizar' : 'Crear',
+      color: 'primary',
+      fields: [
+        {
+          label: 'Nombre',
+          value: form.name,
+        },
+        {
+          label: 'RUT',
+          value: form.rut,
+        },
+        {
+          label: 'Email',
+          value: form.email,
+        },
+        {
+          label: 'Rol',
+          value: selectedRole?.nameDisplay || selectedRole?.name || '-',
+        },
+        {
+          label: 'Cliente',
+          value: isClientRole
+            ? clients.find((client) => client.id === form.client_id)?.name || '-'
+            : 'No aplica',
+        },
+        {
+          label: 'Activo',
+          value: form.active ? 'Sí' : 'No',
+        },
+      ],
+    })
+
+    if (!confirmed.confirmed) {
+      return
+    }
+
+    const payload: UserPayload = {
+      name: form.name.trim(),
+      rut: form.rut.trim(),
+      email: form.email.trim().toLowerCase(),
+      password: form.password.trim() || undefined,
       role_id: form.role_id,
       client_id: isClientRole ? form.client_id : null,
       active: form.active,
     }
 
-    if (editingId) {
-      await updateUser(editingId, payload)
-    } else {
-      await createUser(payload)
-    }
+    try {
+      if (editingId) {
+        await updateUser(editingId, payload)
 
-    setForm(emptyForm)
-    setEditingId(null)
-    await loadData()
+        showAlert('Usuario actualizado correctamente', 'success')
+      } else {
+        await createUser(payload)
+
+        showAlert('Usuario creado correctamente', 'success')
+      }
+
+      setForm(emptyForm)
+      setEditingId(null)
+
+      await loadData()
+    } catch (error) {
+      showBackendError(error, 'Error guardando usuario')
+    }
   }
 
   const handleEdit = (user: User) => {
     setEditingId(user.id)
 
     setForm({
-      name: user.name,
-      email: user.email,
+      name: user.name || '',
+      rut: user.rut || '',
+      email: user.email || '',
       password: '',
-      role_id: user.role_id,
+      role_id: user.role_id || '',
       client_id: user.client_id || '',
       active: user.active,
     })
   }
 
   const handleDeactivate = async (id: string) => {
-    const confirmDeactivate = window.confirm('¿Desactivar usuario?')
+    const user = users.find((currentUser) => currentUser.id === id)
 
-    if (!confirmDeactivate) return
+    if (!user) {
+      showAlert('Usuario no encontrado', 'danger')
 
-    await deactivateUser(id)
-    await loadData()
+      return
+    }
+
+    const confirmed = await confirmAction({
+      title: 'Desactivar usuario',
+      message: '¿Seguro que deseas desactivar este usuario?',
+      confirmText: 'Desactivar',
+      color: 'danger',
+      fields: [
+        {
+          label: 'Nombre',
+          value: user.name,
+        },
+        {
+          label: 'RUT',
+          value: user.rut,
+        },
+        {
+          label: 'Email',
+          value: user.email,
+        },
+        {
+          label: 'Rol',
+          value: user.role?.name_display || '-',
+        },
+      ],
+    })
+
+    if (!confirmed.confirmed) {
+      return
+    }
+
+    try {
+      await deactivateUser(id)
+
+      showAlert('Usuario desactivado correctamente', 'success')
+
+      await loadData()
+    } catch (error) {
+      showBackendError(error, 'Error desactivando usuario')
+    }
   }
 
   const handleCancel = () => {
     setForm(emptyForm)
     setEditingId(null)
+
+    showAlert('Edición cancelada', 'success')
   }
 
   useEffect(() => {
-    const load = async () => {
-      setIsLoading(true)
-      await loadData()
-      setForm(emptyForm)
-      setEditingId(null)
-      setIsLoading(false)
-    }
-    if (!isLoading) {
-      load()
-    }
+    loadData()
   }, [])
 
   return (
@@ -162,6 +319,15 @@ const Users = () => {
             />
           </CCol>
 
+          <CCol md={2}>
+            <CFormInput
+              label="RUT"
+              value={form.rut}
+              placeholder="12.345.678-9"
+              onChange={(e) => handleChange('rut', e.target.value)}
+            />
+          </CCol>
+
           <CCol md={3}>
             <CFormInput
               label="Email"
@@ -172,7 +338,7 @@ const Users = () => {
             />
           </CCol>
 
-          <CCol md={3}>
+          <CCol md={2}>
             <CFormInput
               label={editingId ? 'Nueva contraseña opcional' : 'Contraseña'}
               type="password"
@@ -182,13 +348,14 @@ const Users = () => {
             />
           </CCol>
 
-          <CCol md={3}>
+          <CCol md={2}>
             <CFormSelect
               label="Rol"
               value={form.role_id}
               onChange={(e) => handleChange('role_id', e.target.value)}
             >
               <option value="">Seleccione rol</option>
+
               {roles.map((role) => (
                 <option key={role.id} value={role.id}>
                   {role.nameDisplay.toUpperCase()}
@@ -199,7 +366,7 @@ const Users = () => {
         </CRow>
 
         <CRow className="mb-4">
-          <CCol md={4}>
+          <CCol md={5}>
             <CFormSelect
               label="Cliente asociado"
               value={form.client_id}
@@ -207,6 +374,7 @@ const Users = () => {
               onChange={(e) => handleChange('client_id', e.target.value)}
             >
               <option value="">{isClientRole ? 'Seleccione cliente' : 'No aplica'}</option>
+
               {clients.map((client) => (
                 <option key={client.id} value={client.id}>
                   {client.name} {client.rut ? `(${client.rut})` : ''}
@@ -223,8 +391,8 @@ const Users = () => {
             />
           </CCol>
 
-          <CCol md={6} className="d-flex align-items-end gap-2">
-            <CButton color="primary" onClick={handleSubmit}>
+          <CCol md={5} className="d-flex align-items-end justify-content-end gap-2">
+            <CButton color="primary" disabled={isLoading} onClick={handleSubmit}>
               {editingId ? 'Actualizar' : 'Crear'}
             </CButton>
 
@@ -240,6 +408,7 @@ const Users = () => {
           <CTableHead>
             <CTableRow>
               <CTableHeaderCell>Nombre</CTableHeaderCell>
+              <CTableHeaderCell>RUT</CTableHeaderCell>
               <CTableHeaderCell>Email</CTableHeaderCell>
               <CTableHeaderCell>Rol</CTableHeaderCell>
               <CTableHeaderCell>Cliente</CTableHeaderCell>
@@ -252,10 +421,12 @@ const Users = () => {
             {users.map((user) => (
               <CTableRow key={user.id}>
                 <CTableDataCell>{user.name}</CTableDataCell>
+                <CTableDataCell>{user.rut || '-'}</CTableDataCell>
                 <CTableDataCell>{user.email}</CTableDataCell>
                 <CTableDataCell>{user.role?.name_display || '-'}</CTableDataCell>
                 <CTableDataCell>{user.client?.name || '-'}</CTableDataCell>
                 <CTableDataCell>{user.active ? 'Sí' : 'No'}</CTableDataCell>
+
                 <CTableDataCell>
                   <div className="d-flex gap-2">
                     <CButton color="warning" size="sm" onClick={() => handleEdit(user)}>

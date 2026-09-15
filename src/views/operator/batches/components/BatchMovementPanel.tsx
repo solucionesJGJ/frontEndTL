@@ -498,7 +498,7 @@ const BatchMovementPanel = ({
                           </CButton>
                         )}
 
-                        {canDispatch && (
+                        {/* {canDispatch && (
                           <CButton
                             color="success"
                             size="sm"
@@ -514,7 +514,7 @@ const BatchMovementPanel = ({
                           >
                             Enviar a traslado
                           </CButton>
-                        )}
+                        )} */}
 
                         {canConfirmReception && (
                           <CButton

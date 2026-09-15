@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 
 import BatchDispatchModal, {
   type BatchDispatchModalSubmit,
@@ -12,6 +12,11 @@ import {
   getDispatchDriverShifts,
   type DispatchDriverShift,
 } from '../../../services/operatorBatch.service'
+import {
+  getDispatchGuideByBatch,
+  getDispatchGuidePdf,
+  type DispatchGuide,
+} from '../../../services/dispatchGuide.service'
 import { useFeedback } from '../../../context/FeedbackContext'
 
 const OperatorBatchDetail = () => {
@@ -56,14 +61,214 @@ const OperatorBatchDetail = () => {
 
   /**
    * =====================================================
+   * GUÍA DE DESPACHO DEL LOTE
+   * =====================================================
+   */
+
+  const [dispatchGuide, setDispatchGuide] =
+    useState<DispatchGuide | null>(null)
+
+  const [loadingDispatchGuide, setLoadingDispatchGuide] =
+    useState(false)
+
+  /**
+   * =====================================================
    * DESPACHO PLANTA -> CLIENTE
    * =====================================================
    */
 
-  const [dispatchModalVisible, setDispatchModalVisible] = useState(false)
-  const [dispatchShifts, setDispatchShifts] = useState<DispatchDriverShift[]>([])
-  const [loadingDispatchShifts, setLoadingDispatchShifts] = useState(false)
-  const [dispatchSubmitting, setDispatchSubmitting] = useState(false)
+  const [dispatchModalVisible, setDispatchModalVisible] =
+    useState(false)
+
+  const [dispatchShifts, setDispatchShifts] = useState<
+    DispatchDriverShift[]
+  >([])
+
+  const [loadingDispatchShifts, setLoadingDispatchShifts] =
+    useState(false)
+
+  const [dispatchSubmitting, setDispatchSubmitting] =
+    useState(false)
+
+  /**
+   * =====================================================
+   * CARGAR GUÍA DEL LOTE
+   * =====================================================
+   */
+
+  const loadDispatchGuide = async () => {
+    if (!batch) {
+      setDispatchGuide(null)
+
+      return
+    }
+
+    if (role !== 'admin' && role !== 'warehouse_operator') {
+      setDispatchGuide(null)
+
+      return
+    }
+
+    try {
+      setLoadingDispatchGuide(true)
+
+      const guide = await getDispatchGuideByBatch(batch.id)
+
+      setDispatchGuide(guide)
+    } catch (error: any) {
+      /**
+       * Un lote puede legítimamente no tener guía.
+       *
+       * Ejemplos:
+       *
+       * - todavía está en proceso
+       * - fue despachado sin guía
+       *
+       * En esos casos no mostramos error al usuario.
+       */
+      const status = error?.response?.status
+
+      if (status === 404) {
+        setDispatchGuide(null)
+
+        return
+      }
+
+      setDispatchGuide(null)
+
+      showBackendError(error, 'Error cargando guía de despacho')
+    } finally {
+      setLoadingDispatchGuide(false)
+    }
+  }
+
+  /**
+   * =====================================================
+   * VER PDF GUÍA
+   * =====================================================
+   */
+
+  const handleViewDispatchGuide = async () => {
+    if (!dispatchGuide) {
+      showAlert(
+        'El lote no tiene una guía de despacho asociada',
+        'warning',
+      )
+
+      return
+    }
+
+    if (!dispatchGuide.engine_document_id) {
+      showAlert(
+        'La guía todavía no tiene un PDF disponible',
+        'warning',
+      )
+
+      return
+    }
+
+    try {
+      const pdf = await getDispatchGuidePdf(dispatchGuide.id)
+
+      const pdfUrl = URL.createObjectURL(pdf)
+
+      const newWindow = window.open(pdfUrl, '_blank')
+
+      if (!newWindow) {
+        URL.revokeObjectURL(pdfUrl)
+
+        showAlert(
+          'El navegador bloqueó la apertura del PDF',
+          'warning',
+        )
+
+        return
+      }
+
+      /**
+       * Liberamos el objeto después de un tiempo
+       * prudente para permitir que la nueva pestaña
+       * termine de cargar el PDF.
+       */
+      window.setTimeout(() => {
+        URL.revokeObjectURL(pdfUrl)
+      }, 60000)
+    } catch (error) {
+      showBackendError(error, 'Error obteniendo PDF de la guía')
+    }
+  }
+
+  /**
+   * =====================================================
+   * IMPRIMIR PDF GUÍA
+   * =====================================================
+   */
+
+  const handlePrintDispatchGuide = async () => {
+    if (!dispatchGuide) {
+      showAlert(
+        'El lote no tiene una guía de despacho asociada',
+        'warning',
+      )
+
+      return
+    }
+
+    if (!dispatchGuide.engine_document_id) {
+      showAlert(
+        'La guía todavía no tiene un PDF disponible',
+        'warning',
+      )
+
+      return
+    }
+
+    try {
+      const pdf = await getDispatchGuidePdf(dispatchGuide.id)
+
+      const pdfUrl = URL.createObjectURL(pdf)
+
+      const printWindow = window.open(pdfUrl, '_blank')
+
+      if (!printWindow) {
+        URL.revokeObjectURL(pdfUrl)
+
+        showAlert(
+          'El navegador bloqueó la ventana de impresión',
+          'warning',
+        )
+
+        return
+      }
+
+      /**
+       * Esperamos que el visor PDF cargue antes
+       * de solicitar la impresión.
+       */
+      window.setTimeout(() => {
+        try {
+          printWindow.focus()
+          printWindow.print()
+        } catch {
+          /**
+           * Algunos visores PDF del navegador
+           * no permiten disparar print()
+           * automáticamente.
+           *
+           * En ese caso el PDF queda abierto
+           * y puede imprimirse normalmente
+           * desde el visor.
+           */
+        }
+      }, 1500)
+
+      window.setTimeout(() => {
+        URL.revokeObjectURL(pdfUrl)
+      }, 60000)
+    } catch (error) {
+      showBackendError(error, 'Error obteniendo PDF de la guía')
+    }
+  }
 
   /**
    * =====================================================
@@ -77,7 +282,11 @@ const OperatorBatchDetail = () => {
     }
 
     if (role !== 'admin' && role !== 'warehouse_operator') {
-      showAlert('No tienes permisos para despachar el lote desde planta', 'warning')
+      showAlert(
+        'No tienes permisos para despachar el lote desde planta',
+        'warning',
+      )
+
       return
     }
 
@@ -91,6 +300,7 @@ const OperatorBatchDetail = () => {
     }
 
     setDispatchModalVisible(true)
+
     setLoadingDispatchShifts(true)
 
     try {
@@ -233,7 +443,19 @@ const OperatorBatchDetail = () => {
         showAlert(response.message, 'success')
       }
 
+      /**
+       * Recargamos primero el lote.
+       */
       await loadData()
+
+      /**
+       * Si se solicitó guía, la cargamos
+       * inmediatamente para mostrarla
+       * en el BatchHeader.
+       */
+      if (payload.generateGuide) {
+        await loadDispatchGuide()
+      }
     } catch (error) {
       showBackendError(error, 'Error despachando lote al cliente')
     } finally {
@@ -244,18 +466,6 @@ const OperatorBatchDetail = () => {
   /**
    * =====================================================
    * ACCIONES DE MOVIMIENTO DESDE LA TABLA
-   * =====================================================
-   *
-   * Cada transición tiene su comportamiento real:
-   *
-   * EN_PROCESO -> EN_TRASLADO
-   *   Abre el flujo completo de despacho y DTE52.
-   *
-   * EN_TRASLADO -> CERRADO
-   *   Ejecuta directamente la confirmación del cliente.
-   *
-   * El resto continúa preparando el formulario operativo
-   * de bodega.
    * =====================================================
    */
 
@@ -289,12 +499,6 @@ const OperatorBatchDetail = () => {
      *
      * EN_TRASLADO -> CERRADO
      * =================================================
-     *
-     * Esta acción NO prepara el formulario.
-     *
-     * Se ejecuta directamente porque client_operator
-     * no debe ver ni utilizar "Registrar movimiento".
-     * =================================================
      */
 
     if (
@@ -307,6 +511,7 @@ const OperatorBatchDetail = () => {
 
       if (!targetGarmentId) {
         showAlert('Debe seleccionar una prenda', 'warning')
+
         return
       }
 
@@ -332,17 +537,6 @@ const OperatorBatchDetail = () => {
   /**
    * =====================================================
    * INTERCEPTAR REGISTRO MANUAL
-   * =====================================================
-   *
-   * Evitamos que admin / bodega puedan saltarse:
-   *
-   * - el flujo de despacho con/sin guía
-   *
-   * y que admin pueda registrar manualmente:
-   *
-   * - EN_TRASLADO -> CERRADO
-   *
-   * sin pasar por la confirmación de recepción.
    * =====================================================
    */
 
@@ -384,6 +578,7 @@ const OperatorBatchDetail = () => {
     ) {
       if (!movementForm.garment_id) {
         showAlert('Debe seleccionar una prenda', 'warning')
+
         return
       }
 
@@ -402,6 +597,28 @@ const OperatorBatchDetail = () => {
 
     await handleSubmitMovement()
   }
+
+  /**
+   * =====================================================
+   * CARGAR GUÍA CUANDO CAMBIA EL LOTE
+   * =====================================================
+   */
+
+  useEffect(() => {
+    if (!batch?.id) {
+      setDispatchGuide(null)
+
+      return
+    }
+
+    if (role !== 'admin' && role !== 'warehouse_operator') {
+      setDispatchGuide(null)
+
+      return
+    }
+
+    void loadDispatchGuide()
+  }, [batch?.id, role])
 
   /**
    * =====================================================
@@ -430,8 +647,12 @@ const OperatorBatchDetail = () => {
         batch={batch}
         role={role}
         canManageBatchItems={canManageBatchItems}
+        dispatchGuide={dispatchGuide}
+        loadingDispatchGuide={loadingDispatchGuide}
         onDispatch={handleDispatchBatch}
         onDispatchToClient={openDispatchToClient}
+        onViewDispatchGuide={handleViewDispatchGuide}
+        onPrintDispatchGuide={handlePrintDispatchGuide}
       />
 
       {/*
