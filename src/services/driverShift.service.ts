@@ -58,6 +58,10 @@ export type DriverShift = {
 
   ticket_pdf_path?: string | null
 
+  driver_photo_path?: string | null
+
+  vehicle_photo_path?: string | null
+
   createdAt?: string
   updatedAt?: string
 
@@ -84,6 +88,10 @@ export type StartDriverShiftPayload = {
     checked: boolean
     observations?: string
   }[]
+
+  driver_photo: File
+
+  vehicle_photo: File
 }
 
 export type FinishDriverShiftPayload = {
@@ -137,9 +145,52 @@ export async function getDriverShiftHistory() {
 
 /**
  * Iniciar jornada.
+ *
+ * Se utiliza multipart/form-data porque
+ * el inicio incluye las fotografías del
+ * conductor y del vehículo.
  */
-export async function startDriverShift(payload: StartDriverShiftPayload) {
-  const { data } = await apiClient.post('/driver-shifts/start', payload)
+export async function startDriverShift(
+  payload: StartDriverShiftPayload,
+) {
+  const formData = new FormData()
+
+  formData.append(
+    'vehicle_id',
+    payload.vehicle_id,
+  )
+
+  formData.append(
+    'initial_mileage',
+    String(payload.initial_mileage),
+  )
+
+  if (payload.observations?.trim()) {
+    formData.append(
+      'observations',
+      payload.observations.trim(),
+    )
+  }
+
+  formData.append(
+    'checklist',
+    JSON.stringify(payload.checklist),
+  )
+
+  formData.append(
+    'driver_photo',
+    payload.driver_photo,
+  )
+
+  formData.append(
+    'vehicle_photo',
+    payload.vehicle_photo,
+  )
+
+  const { data } = await apiClient.post(
+    '/driver-shifts/start',
+    formData,
+  )
 
   return data.data as DriverShift
 }
@@ -147,34 +198,48 @@ export async function startDriverShift(payload: StartDriverShiftPayload) {
 /**
  * Finalizar jornada.
  */
-export async function finishDriverShift(payload: FinishDriverShiftPayload) {
-  const { data } = await apiClient.patch('/driver-shifts/finish', payload)
+export async function finishDriverShift(
+  payload: FinishDriverShiftPayload,
+) {
+  const { data } = await apiClient.patch(
+    '/driver-shifts/finish',
+    payload,
+  )
 
   return data.data as DriverShift
 }
 
 /**
  * Descargar comprobante PDF.
- *
- * Solicitamos blob porque el endpoint
- * devuelve directamente el archivo.
  */
-export async function downloadDriverShiftTicket(shiftId: string, ticketNumber: string) {
-  const response = await apiClient.get(`/driver-shifts/${shiftId}/ticket`, {
-    responseType: 'blob',
-  })
+export async function downloadDriverShiftTicket(
+  shiftId: string,
+  ticketNumber: string,
+) {
+  const response = await apiClient.get(
+    `/driver-shifts/${shiftId}/ticket`,
+    {
+      responseType: 'blob',
+    },
+  )
 
-  const blob = new Blob([response.data], {
-    type: 'application/pdf',
-  })
+  const blob = new Blob(
+    [response.data],
+    {
+      type: 'application/pdf',
+    },
+  )
 
-  const url = window.URL.createObjectURL(blob)
+  const url =
+    window.URL.createObjectURL(blob)
 
-  const link = document.createElement('a')
+  const link =
+    document.createElement('a')
 
   link.href = url
 
-  link.download = `${ticketNumber}.pdf`
+  link.download =
+    `${ticketNumber}.pdf`
 
   document.body.appendChild(link)
 
@@ -185,10 +250,50 @@ export async function downloadDriverShiftTicket(shiftId: string, ticketNumber: s
   window.URL.revokeObjectURL(url)
 }
 
-export async function getAllDriverShifts(filters: DriverShiftAdminFilters = {}) {
-  const { data } = await apiClient.get('/driver-shifts/admin/history', {
-    params: filters,
-  })
+/**
+ * Historial administrativo.
+ */
+export async function getAllDriverShifts(
+  filters: DriverShiftAdminFilters = {},
+) {
+  const { data } = await apiClient.get(
+    '/driver-shifts/admin/history',
+    {
+      params: filters,
+    },
+  )
 
   return data.data as DriverShift[]
+}
+
+/**
+ * =====================================================
+ * EVIDENCIAS FOTOGRÁFICAS
+ * =====================================================
+ */
+
+export type DriverShiftPhotoType =
+  | 'driver'
+  | 'vehicle'
+
+/**
+ * Obtiene una fotografía protegida de la jornada.
+ *
+ * Devuelve una URL temporal del navegador para
+ * poder mostrar el blob recibido desde backend.
+ */
+export async function getDriverShiftPhoto(
+  shiftId: string,
+  type: DriverShiftPhotoType,
+) {
+  const response = await apiClient.get(
+    `/driver-shifts/${shiftId}/photo/${type}`,
+    {
+      responseType: 'blob',
+    },
+  )
+
+  return window.URL.createObjectURL(
+    response.data,
+  )
 }

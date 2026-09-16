@@ -57,70 +57,75 @@ type ChecklistState = {
 
 const DriverShiftView = () => {
 
-    const [
-        vehicles,
-        setVehicles,
-    ] = useState<Vehicle[]>([])
+    const [vehicles, setVehicles] =
+        useState<Vehicle[]>([])
 
     const [
         checklistDefinitions,
         setChecklistDefinitions,
     ] = useState<DriverChecklistDefinition[]>([])
 
-    const [
-        checklist,
-        setChecklist,
-    ] = useState<ChecklistState[]>([])
+    const [checklist, setChecklist] =
+        useState<ChecklistState[]>([])
 
-    const [
-        currentShift,
-        setCurrentShift,
-    ] = useState<DriverShift | null>(null)
+    const [currentShift, setCurrentShift] =
+        useState<DriverShift | null>(null)
 
-    const [
-        history,
-        setHistory,
-    ] = useState<DriverShift[]>([])
+    const [history, setHistory] =
+        useState<DriverShift[]>([])
 
     const [
         selectedVehicleId,
         setSelectedVehicleId,
     ] = useState('')
 
-    const [
-        initialMileage,
-        setInitialMileage,
-    ] = useState(0)
+    const [initialMileage, setInitialMileage] =
+        useState(0)
 
     const [
         startObservations,
         setStartObservations,
     ] = useState('')
 
-    const [
-        finalMileage,
-        setFinalMileage,
-    ] = useState(0)
+    const [finalMileage, setFinalMileage] =
+        useState(0)
 
     const [
         endObservations,
         setEndObservations,
     ] = useState('')
 
+    /**
+     * Fotografías obligatorias de inicio.
+     */
     const [
-        loading,
-        setLoading,
-    ] = useState(true)
+        driverPhoto,
+        setDriverPhoto,
+    ] = useState<File | null>(null)
 
     const [
-        submitting,
-        setSubmitting,
-    ] = useState(false)
+        vehiclePhoto,
+        setVehiclePhoto,
+    ] = useState<File | null>(null)
 
     const [
-        downloading,
-        setDownloading,
-    ] = useState(false)
+        driverPhotoPreview,
+        setDriverPhotoPreview,
+    ] = useState<string | null>(null)
+
+    const [
+        vehiclePhotoPreview,
+        setVehiclePhotoPreview,
+    ] = useState<string | null>(null)
+
+    const [loading, setLoading] =
+        useState(true)
+
+    const [submitting, setSubmitting] =
+        useState(false)
+
+    const [downloading, setDownloading] =
+        useState(false)
 
 
     const user =
@@ -134,16 +139,12 @@ const DriverShiftView = () => {
     } = useFeedback()
 
 
-    /**
-     * Vehículo actualmente seleccionado.
-     */
     const selectedVehicle =
         useMemo(
             () =>
                 vehicles.find(
                     (vehicle) =>
-                        vehicle.id ===
-                        selectedVehicleId,
+                        vehicle.id === selectedVehicleId,
                 ) || null,
             [
                 vehicles,
@@ -152,16 +153,12 @@ const DriverShiftView = () => {
         )
 
 
-    /**
-     * Checklist separado por categoría.
-     */
     const vehicleChecklist =
         useMemo(
             () =>
                 checklistDefinitions.filter(
                     (item) =>
-                        item.category ===
-                        'vehicle',
+                        item.category === 'vehicle',
                 ),
             [
                 checklistDefinitions,
@@ -174,8 +171,7 @@ const DriverShiftView = () => {
             () =>
                 checklistDefinitions.filter(
                     (item) =>
-                        item.category ===
-                        'driver',
+                        item.category === 'driver',
                 ),
             [
                 checklistDefinitions,
@@ -183,10 +179,6 @@ const DriverShiftView = () => {
         )
 
 
-    /**
-     * Verifica que todos los checks
-     * obligatorios estén aprobados.
-     */
     const requiredChecklistComplete =
         useMemo(
             () => {
@@ -197,7 +189,6 @@ const DriverShiftView = () => {
                             item.required,
                     )
 
-
                 return requiredItems.every(
                     (definition) => {
 
@@ -207,7 +198,6 @@ const DriverShiftView = () => {
                                     item.code ===
                                     definition.code,
                             )
-
 
                         return current?.checked === true
                     },
@@ -221,11 +211,14 @@ const DriverShiftView = () => {
         )
 
 
-    /**
-     * Kilómetros recorridos.
-     *
-     * Solo se muestra al finalizar.
-     */
+    const photosComplete =
+        Boolean(
+            driverPhoto
+            &&
+            vehiclePhoto,
+        )
+
+
     const travelledKilometers =
         useMemo(
             () => {
@@ -237,7 +230,6 @@ const DriverShiftView = () => {
                 ) {
                     return 0
                 }
-
 
                 return Math.max(
                     0,
@@ -254,10 +246,6 @@ const DriverShiftView = () => {
         )
 
 
-    /**
-     * Inicializa las respuestas del checklist
-     * desde la definición entregada por backend.
-     */
     const initializeChecklist =
         (
             definitions:
@@ -281,16 +269,22 @@ const DriverShiftView = () => {
         }
 
 
-    /**
-     * Carga inicial del módulo.
-     */
+    const clearPhotos = () => {
+
+        setDriverPhoto(null)
+        setVehiclePhoto(null)
+
+        setDriverPhotoPreview(null)
+        setVehiclePhotoPreview(null)
+    }
+
+
     const loadData =
         async () => {
 
             try {
 
                 setLoading(true)
-
 
                 const [
                     vehiclesData,
@@ -304,10 +298,7 @@ const DriverShiftView = () => {
                     getDriverShiftHistory(),
                 ])
 
-
-                setVehicles(
-                    vehiclesData,
-                )
+                setVehicles(vehiclesData)
 
                 setChecklistDefinitions(
                     checklistData,
@@ -321,23 +312,12 @@ const DriverShiftView = () => {
                     historyData,
                 )
 
-
-                /**
-                 * Solamente reiniciamos el checklist
-                 * si no existe jornada activa.
-                 */
                 if (!shiftData) {
                     initializeChecklist(
                         checklistData,
                     )
                 }
 
-
-                /**
-                 * Si existe jornada activa dejamos
-                 * preparado el kilometraje final
-                 * con el inicial como mínimo lógico.
-                 */
                 if (shiftData) {
                     setFinalMileage(
                         Number(
@@ -360,9 +340,6 @@ const DriverShiftView = () => {
         }
 
 
-    /**
-     * Modificar un check.
-     */
     const handleChecklistChange =
         (
             code: string,
@@ -384,9 +361,6 @@ const DriverShiftView = () => {
         }
 
 
-    /**
-     * Observación específica de un check.
-     */
     const handleChecklistObservation =
         (
             code: string,
@@ -408,9 +382,6 @@ const DriverShiftView = () => {
         }
 
 
-    /**
-     * Obtener estado local de un check.
-     */
     const getChecklistState =
         (
             code: string,
@@ -423,15 +394,100 @@ const DriverShiftView = () => {
         }
 
 
-    /**
-     * Iniciar jornada.
-     */
+    const handleDriverPhotoChange =
+        (
+            event:
+                React.ChangeEvent<HTMLInputElement>,
+        ) => {
+
+            const file =
+                event.target.files?.[0]
+
+            if (!file) {
+                return
+            }
+
+            if (!file.type.startsWith('image/')) {
+
+                showAlert(
+                    'Seleccione una imagen válida para la fotografía del conductor',
+                    'warning',
+                )
+
+                event.target.value = ''
+
+                return
+            }
+
+            setDriverPhoto(file)
+
+            const preview =
+                URL.createObjectURL(file)
+
+            setDriverPhotoPreview(
+                (previous) => {
+
+                    if (previous) {
+                        URL.revokeObjectURL(
+                            previous,
+                        )
+                    }
+
+                    return preview
+                },
+            )
+        }
+
+
+    const handleVehiclePhotoChange =
+        (
+            event:
+                React.ChangeEvent<HTMLInputElement>,
+        ) => {
+
+            const file =
+                event.target.files?.[0]
+
+            if (!file) {
+                return
+            }
+
+            if (!file.type.startsWith('image/')) {
+
+                showAlert(
+                    'Seleccione una imagen válida para la fotografía del vehículo',
+                    'warning',
+                )
+
+                event.target.value = ''
+
+                return
+            }
+
+            setVehiclePhoto(file)
+
+            const preview =
+                URL.createObjectURL(file)
+
+            setVehiclePhotoPreview(
+                (previous) => {
+
+                    if (previous) {
+                        URL.revokeObjectURL(
+                            previous,
+                        )
+                    }
+
+                    return preview
+                },
+            )
+        }
+
+
     const handleStartShift =
         async () => {
 
-            if (
-                !selectedVehicleId
-            ) {
+            if (!selectedVehicleId) {
 
                 showAlert(
                     'Debe seleccionar un vehículo',
@@ -459,9 +515,7 @@ const DriverShiftView = () => {
             }
 
 
-            if (
-                !requiredChecklistComplete
-            ) {
+            if (!requiredChecklistComplete) {
 
                 showAlert(
                     'Debe aprobar todos los controles obligatorios antes de iniciar la jornada',
@@ -472,9 +526,29 @@ const DriverShiftView = () => {
             }
 
 
-            if (
-                !selectedVehicle
-            ) {
+            if (!driverPhoto) {
+
+                showAlert(
+                    'Debe cargar una fotografía del conductor antes de iniciar la jornada',
+                    'warning',
+                )
+
+                return
+            }
+
+
+            if (!vehiclePhoto) {
+
+                showAlert(
+                    'Debe cargar una fotografía del vehículo antes de iniciar la jornada',
+                    'warning',
+                )
+
+                return
+            }
+
+
+            if (!selectedVehicle) {
 
                 showAlert(
                     'Vehículo no encontrado',
@@ -489,12 +563,9 @@ const DriverShiftView = () => {
                 checklistDefinitions.filter(
                     (definition) => {
 
-                        if (
-                            definition.required
-                        ) {
+                        if (definition.required) {
                             return false
                         }
-
 
                         return (
                             getChecklistState(
@@ -543,6 +614,22 @@ const DriverShiftView = () => {
 
                         value:
                             'Completados',
+                    },
+
+                    {
+                        label:
+                            'Foto conductor',
+
+                        value:
+                            driverPhoto.name,
+                    },
+
+                    {
+                        label:
+                            'Foto vehículo',
+
+                        value:
+                            vehiclePhoto.name,
                     },
                 ]
 
@@ -616,6 +703,12 @@ const DriverShiftView = () => {
                                         item.observations,
                                 }),
                             ),
+
+                        driver_photo:
+                            driverPhoto,
+
+                        vehicle_photo:
+                            vehiclePhoto,
                     })
 
 
@@ -623,17 +716,15 @@ const DriverShiftView = () => {
                     shift,
                 )
 
-
                 setFinalMileage(
                     Number(
                         shift.initial_mileage,
                     ),
                 )
 
+                setEndObservations('')
 
-                setEndObservations(
-                    '',
-                )
+                clearPhotos()
 
 
                 showAlert(
@@ -642,12 +733,8 @@ const DriverShiftView = () => {
                 )
 
 
-                /**
-                 * Actualizamos historial.
-                 */
                 const historyData =
                     await getDriverShiftHistory()
-
 
                 setHistory(
                     historyData,
@@ -667,9 +754,6 @@ const DriverShiftView = () => {
         }
 
 
-    /**
-     * Descargar comprobante.
-     */
     const handleDownloadTicket =
         async () => {
 
@@ -677,11 +761,9 @@ const DriverShiftView = () => {
                 return
             }
 
-
             try {
 
                 setDownloading(true)
-
 
                 await downloadDriverShiftTicket(
                     currentShift.id,
@@ -702,16 +784,12 @@ const DriverShiftView = () => {
         }
 
 
-    /**
-     * Finalizar jornada.
-     */
     const handleFinishShift =
         async () => {
 
             if (!currentShift) {
                 return
             }
-
 
             const parsedFinalMileage =
                 Number(
@@ -827,7 +905,6 @@ const DriverShiftView = () => {
 
                 setSubmitting(true)
 
-
                 await finishDriverShift({
                     final_mileage:
                         parsedFinalMileage,
@@ -843,33 +920,19 @@ const DriverShiftView = () => {
                 )
 
 
-                /**
-                 * Limpiamos estado de la jornada.
-                 */
-                setCurrentShift(
-                    null,
-                )
+                setCurrentShift(null)
 
-                setSelectedVehicleId(
-                    '',
-                )
+                setSelectedVehicleId('')
 
-                setInitialMileage(
-                    0,
-                )
+                setInitialMileage(0)
 
-                setFinalMileage(
-                    0,
-                )
+                setFinalMileage(0)
 
-                setStartObservations(
-                    '',
-                )
+                setStartObservations('')
 
-                setEndObservations(
-                    '',
-                )
+                setEndObservations('')
 
+                clearPhotos()
 
                 initializeChecklist(
                     checklistDefinitions,
@@ -878,7 +941,6 @@ const DriverShiftView = () => {
 
                 const historyData =
                     await getDriverShiftHistory()
-
 
                 setHistory(
                     historyData,
@@ -908,9 +970,32 @@ const DriverShiftView = () => {
     )
 
 
-    /**
-     * Pantalla de carga.
-     */
+    useEffect(
+        () => {
+
+            return () => {
+
+                if (driverPhotoPreview) {
+                    URL.revokeObjectURL(
+                        driverPhotoPreview,
+                    )
+                }
+
+                if (vehiclePhotoPreview) {
+                    URL.revokeObjectURL(
+                        vehiclePhotoPreview,
+                    )
+                }
+            }
+
+        },
+        [
+            driverPhotoPreview,
+            vehiclePhotoPreview,
+        ],
+    )
+
+
     if (loading) {
 
         return (
@@ -950,11 +1035,8 @@ const DriverShiftView = () => {
                                 Jornada activa
                             </strong>
 
-
                             <CBadge color="success">
-
                                 EN CURSO
-
                             </CBadge>
 
                         </div>
@@ -976,9 +1058,7 @@ const DriverShiftView = () => {
 
                             {' '}
 
-                            {
-                                currentShift.ticket_number
-                            }
+                            {currentShift.ticket_number}
 
                         </CAlert>
 
@@ -1013,7 +1093,6 @@ const DriverShiftView = () => {
                                 </strong>
 
                                 <div>
-
                                     {
                                         currentShift
                                             .vehicle
@@ -1021,7 +1100,6 @@ const DriverShiftView = () => {
                                         ||
                                         '-'
                                     }
-
                                 </div>
 
                                 <small className="text-body-secondary">
@@ -1098,8 +1176,7 @@ const DriverShiftView = () => {
 
 
                         {
-                            currentShift
-                                .start_observations
+                            currentShift.start_observations
                             && (
 
                                 <CAlert color="info">
@@ -1147,10 +1224,6 @@ const DriverShiftView = () => {
 
                 </CCard>
 
-
-                {/*
-         * CHECKLIST REALIZADO
-         */}
 
                 <CCard className="mb-4">
 
@@ -1222,11 +1295,7 @@ const DriverShiftView = () => {
 
 
                                                     <CTableDataCell>
-
-                                                        {
-                                                            check.label
-                                                        }
-
+                                                        {check.label}
                                                     </CTableDataCell>
 
 
@@ -1274,10 +1343,6 @@ const DriverShiftView = () => {
 
                 </CCard>
 
-
-                {/*
-         * CIERRE DE JORNADA
-         */}
 
                 <CCard className="mb-4">
 
@@ -1396,9 +1461,7 @@ const DriverShiftView = () => {
 
 
                 <ShiftHistory
-                    history={
-                        history
-                    }
+                    history={history}
                 />
 
             </>
@@ -1431,9 +1494,7 @@ const DriverShiftView = () => {
 
                     <CAlert color="info">
 
-                        Hola
-
-                        {' '}
+                        Hola{' '}
 
                         <strong>
                             {
@@ -1444,7 +1505,7 @@ const DriverShiftView = () => {
 
                         {' '}
 
-                        Antes de iniciar debes seleccionar el vehículo y completar el checklist.
+                        Antes de iniciar debes seleccionar el vehículo, completar el checklist y registrar las fotografías de inicio.
 
                     </CAlert>
 
@@ -1470,7 +1531,6 @@ const DriverShiftView = () => {
                                     Seleccione vehículo
                                 </option>
 
-
                                 {
                                     vehicles.map(
                                         (vehicle) => (
@@ -1484,9 +1544,7 @@ const DriverShiftView = () => {
                                                 }
                                             >
 
-                                                {
-                                                    vehicle.plate
-                                                }
+                                                {vehicle.plate}
 
                                                 {' - '}
 
@@ -1553,8 +1611,7 @@ const DriverShiftView = () => {
 
 
                     {
-                        vehicles.length ===
-                        0
+                        vehicles.length === 0
                         && (
 
                             <CAlert color="warning">
@@ -1570,10 +1627,6 @@ const DriverShiftView = () => {
 
             </CCard>
 
-
-            {/*
-       * CHECKLIST VEHÍCULO
-       */}
 
             <ChecklistCard
                 title="Condiciones del vehículo"
@@ -1591,10 +1644,6 @@ const DriverShiftView = () => {
                 }
             />
 
-
-            {/*
-       * CHECKLIST CONDUCTOR
-       */}
 
             <ChecklistCard
                 title="Condiciones del conductor"
@@ -1614,8 +1663,179 @@ const DriverShiftView = () => {
 
 
             {/*
-       * OBSERVACIONES GENERALES
-       */}
+             * =================================================
+             * EVIDENCIA FOTOGRÁFICA
+             * =================================================
+             */}
+
+            <CCard className="mb-4">
+
+                <CCardHeader>
+
+                    <strong>
+                        Fotografías de inicio
+                    </strong>
+
+                </CCardHeader>
+
+
+                <CCardBody>
+
+                    <CAlert color="info">
+
+                        Debes registrar una fotografía del conductor y una del vehículo antes de iniciar la jornada.
+
+                    </CAlert>
+
+
+                    <CRow>
+
+                        <CCol
+                            md={6}
+                            className="mb-4"
+                        >
+
+                            <CFormInput
+                                type="file"
+                                label="Fotografía del conductor"
+                                accept="image/jpeg,image/png,image/webp"
+                                capture="user"
+                                onChange={
+                                    handleDriverPhotoChange
+                                }
+                            />
+
+
+                            {
+                                driverPhotoPreview
+                                && (
+
+                                    <div className="mt-3">
+
+                                        <img
+                                            src={
+                                                driverPhotoPreview
+                                            }
+                                            alt="Vista previa del conductor"
+                                            style={{
+                                                width:
+                                                    '100%',
+
+                                                maxHeight:
+                                                    '320px',
+
+                                                objectFit:
+                                                    'cover',
+
+                                                borderRadius:
+                                                    '8px',
+                                            }}
+                                        />
+
+                                        <div className="mt-2">
+
+                                            <CBadge color="success">
+                                                Foto conductor cargada
+                                            </CBadge>
+
+                                        </div>
+
+                                    </div>
+
+                                )
+                            }
+
+                        </CCol>
+
+
+                        <CCol
+                            md={6}
+                            className="mb-4"
+                        >
+
+                            <CFormInput
+                                type="file"
+                                label="Fotografía del vehículo"
+                                accept="image/jpeg,image/png,image/webp"
+                                capture="environment"
+                                onChange={
+                                    handleVehiclePhotoChange
+                                }
+                            />
+
+
+                            {
+                                vehiclePhotoPreview
+                                && (
+
+                                    <div className="mt-3">
+
+                                        <img
+                                            src={
+                                                vehiclePhotoPreview
+                                            }
+                                            alt="Vista previa del vehículo"
+                                            style={{
+                                                width:
+                                                    '100%',
+
+                                                maxHeight:
+                                                    '320px',
+
+                                                objectFit:
+                                                    'cover',
+
+                                                borderRadius:
+                                                    '8px',
+                                            }}
+                                        />
+
+                                        <div className="mt-2">
+
+                                            <CBadge color="success">
+                                                Foto vehículo cargada
+                                            </CBadge>
+
+                                        </div>
+
+                                    </div>
+
+                                )
+                            }
+
+                        </CCol>
+
+                    </CRow>
+
+
+                    {
+                        photosComplete
+
+                            ? (
+
+                                <CAlert color="success">
+
+                                    Fotografías de inicio completas.
+
+                                </CAlert>
+
+                            )
+
+                            : (
+
+                                <CAlert color="warning">
+
+                                    Las dos fotografías son obligatorias para iniciar la jornada.
+
+                                </CAlert>
+
+                            )
+                    }
+
+                </CCardBody>
+
+            </CCard>
+
 
             <CCard className="mb-4">
 
@@ -1687,6 +1907,8 @@ const DriverShiftView = () => {
                             !selectedVehicleId
                             ||
                             !requiredChecklistComplete
+                            ||
+                            !photosComplete
                         }
                     >
 
@@ -1704,9 +1926,7 @@ const DriverShiftView = () => {
 
 
             <ShiftHistory
-                history={
-                    history
-                }
+                history={history}
             />
 
         </>
@@ -1982,11 +2202,7 @@ const ShiftHistory = ({
                                         >
 
                                             <CTableDataCell>
-
-                                                {
-                                                    shift.ticket_number
-                                                }
-
+                                                {shift.ticket_number}
                                             </CTableDataCell>
 
 
@@ -2122,8 +2338,7 @@ const ShiftHistory = ({
 
 
                         {
-                            history.length ===
-                            0
+                            history.length === 0
                             && (
 
                                 <CTableRow>
